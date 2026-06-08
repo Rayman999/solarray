@@ -590,6 +590,16 @@ h1 {
   white-space: nowrap;
 }
 
+.sync-error {
+  /* Psychology: trust repair. Sync failures need a quiet visible explanation so live data does not feel mysteriously broken. */
+  border: 1px solid rgba(217, 148, 148, 0.28);
+  border-radius: 0.72rem;
+  background: rgba(217, 148, 148, 0.07);
+  color: var(--rose);
+  padding: 0.7rem 0.8rem;
+  font-size: 0.82rem;
+}
+
 .details-toggle:active,
 .quiet-button:active,
 .signal-card button:active,

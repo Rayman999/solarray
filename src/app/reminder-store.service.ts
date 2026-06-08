@@ -25,6 +25,7 @@ export class ReminderStore {
   private unsubscribeReminders?: Unsubscribe;
 
   readonly reminders = this.remindersSignal.asReadonly();
+  readonly error = signal('');
   readonly openReminders = computed(() => this.reminders().filter((reminder) => !reminder.completed));
   readonly completedReminders = computed(() => this.reminders().filter((reminder) => reminder.completed));
   readonly locationReminders = computed(() => this.openReminders().filter((reminder) => reminder.location));
@@ -42,43 +43,88 @@ export class ReminderStore {
       }
 
       const remindersQuery = query(this.collectionFor(user.uid), orderBy('createdAt', 'desc'));
-      this.unsubscribeReminders = onSnapshot(remindersQuery, (snapshot) => {
-        this.remindersSignal.set(snapshot.docs.map(toReminder));
-      });
+      this.unsubscribeReminders = onSnapshot(
+        remindersQuery,
+        (snapshot) => {
+          this.error.set('');
+          this.remindersSignal.set(snapshot.docs.map(toReminder));
+        },
+        () => this.error.set('Could not sync reminders. Check Firestore rules and your connection.')
+      );
     });
   }
 
-  add(reminder: Omit<Reminder, 'id' | 'createdAt' | 'completed'>): void {
+  async add(reminder: Omit<Reminder, 'id' | 'createdAt' | 'completed'>): Promise<string | null> {
     const user = this.auth.user();
     if (!user) {
-      return;
+      this.error.set('Sign in before adding reminders.');
+      return null;
     }
 
     const id = crypto.randomUUID();
-    void setDoc(doc(this.collectionFor(user.uid), id), {
+    const nextReminder: Reminder = {
       ...reminder,
+      id,
       completed: false,
       createdAt: new Date().toISOString()
-    });
+    };
+
+    this.remindersSignal.update((reminders) => [nextReminder, ...reminders]);
+
+    try {
+      await setDoc(doc(this.collectionFor(user.uid), id), nextReminder);
+      this.error.set('');
+      return id;
+    } catch {
+      this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== id));
+      this.error.set('Could not save that reminder. Try again in a moment.');
+      return null;
+    }
   }
 
-  toggle(id: string): void {
+  async toggle(id: string): Promise<Reminder | null> {
     const user = this.auth.user();
     const reminder = this.reminders().find((candidate) => candidate.id === id);
     if (!user || !reminder) {
-      return;
+      this.error.set('Could not find that reminder.');
+      return null;
     }
 
-    void updateDoc(doc(this.collectionFor(user.uid), id), { completed: !reminder.completed });
+    const completed = !reminder.completed;
+    this.remindersSignal.update((reminders) =>
+      reminders.map((candidate) => (candidate.id === id ? { ...candidate, completed } : candidate))
+    );
+
+    try {
+      await updateDoc(doc(this.collectionFor(user.uid), id), { completed });
+      this.error.set('');
+      return { ...reminder, completed };
+    } catch {
+      this.remindersSignal.update((reminders) =>
+        reminders.map((candidate) => (candidate.id === id ? reminder : candidate))
+      );
+      this.error.set('Could not update that reminder. Try again in a moment.');
+      return null;
+    }
   }
 
-  remove(id: string): void {
+  async remove(id: string): Promise<void> {
     const user = this.auth.user();
     if (!user) {
+      this.error.set('Sign in before deleting reminders.');
       return;
     }
 
-    void deleteDoc(doc(this.collectionFor(user.uid), id));
+    const previous = this.reminders();
+    this.remindersSignal.set(previous.filter((reminder) => reminder.id !== id));
+
+    try {
+      await deleteDoc(doc(this.collectionFor(user.uid), id));
+      this.error.set('');
+    } catch {
+      this.remindersSignal.set(previous);
+      this.error.set('Could not delete that reminder. Try again in a moment.');
+    }
   }
 
   private collectionFor(uid: string) {

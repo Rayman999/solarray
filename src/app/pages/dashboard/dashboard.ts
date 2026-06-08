@@ -133,18 +133,19 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.queueScrollProgressUpdate();
   }
 
-  addReminder(): void {
+  async addReminder(): Promise<void> {
     if (!this.title().trim()) {
       return;
     }
 
+    const reminderTitle = this.title().trim();
     const latitude = Number(this.latitude());
     const longitude = Number(this.longitude());
     const hasLocation = this.kind() === 'location' && Number.isFinite(latitude) && Number.isFinite(longitude);
 
     this.playCaptureFlow();
-    this.store.add({
-      title: this.title().trim(),
+    await this.store.add({
+      title: reminderTitle,
       notes: this.notes().trim(),
       kind: this.kind(),
       dueAt: new Date(this.dueAt()).toISOString(),
@@ -170,6 +171,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     if (createdId) {
       this.playTaskEntryFlow(createdId);
+      void this.notifications.showLocal('Reminder saved', reminderTitle || 'Your reminder is ready.');
     }
   }
 
@@ -189,7 +191,11 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   completeReminder(id: string): void {
     if (this.reducedMotion()) {
-      this.store.toggle(id);
+      const reminder = this.store.reminders().find((candidate) => candidate.id === id);
+      void this.store.toggle(id);
+      if (reminder && !reminder.completed) {
+        void this.notifications.showLocal('Task completed', reminder.title);
+      }
       this.playProgressCounterFlow();
       return;
     }
@@ -200,7 +206,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   deleteReminder(id: string): void {
     if (this.reducedMotion()) {
-      this.store.remove(id);
+      void this.store.remove(id);
       this.playProgressCounterFlow();
       return;
     }
@@ -222,6 +228,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   async requestNotifications(): Promise<void> {
     await this.notifications.requestPermission();
+    await this.notifications.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
     this.playStatusSignalFlow('.signal-card .pi-bell');
   }
 
@@ -372,7 +379,11 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       ease: MOTION.easeOut
     });
     completionTimeline.add(() => {
-      this.store.toggle(id);
+      const reminder = this.store.reminders().find((candidate) => candidate.id === id);
+      void this.store.toggle(id);
+      if (reminder && !reminder.completed) {
+        void this.notifications.showLocal('Task completed', reminder.title);
+      }
       this.completingId.set(null);
       this.playProgressCounterFlow();
       this.revealReplacementTask(id);
@@ -399,7 +410,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       ease: MOTION.easeOut
     });
     deletionTimeline.add(() => {
-      this.store.remove(id);
+      void this.store.remove(id);
       this.revealReplacementTask(id);
     });
   }
