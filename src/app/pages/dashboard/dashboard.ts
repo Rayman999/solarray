@@ -133,7 +133,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.queueScrollProgressUpdate();
   }
 
-  async addReminder(): Promise<void> {
+  addReminder(): void {
     if (!this.title().trim()) {
       return;
     }
@@ -144,7 +144,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const hasLocation = this.kind() === 'location' && Number.isFinite(latitude) && Number.isFinite(longitude);
 
     this.playCaptureFlow();
-    await this.store.add({
+    const createdId = this.store.add({
       title: reminderTitle,
       notes: this.notes().trim(),
       kind: this.kind(),
@@ -158,7 +158,6 @@ export class Dashboard implements AfterViewInit, OnDestroy {
           }
         : undefined
     });
-    const createdId = this.store.reminders()[0]?.id;
 
     this.title.set('');
     this.notes.set('');

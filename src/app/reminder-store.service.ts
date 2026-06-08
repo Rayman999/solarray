@@ -54,7 +54,7 @@ export class ReminderStore {
     });
   }
 
-  async add(reminder: Omit<Reminder, 'id' | 'createdAt' | 'completed'>): Promise<string | null> {
+  add(reminder: Omit<Reminder, 'id' | 'createdAt' | 'completed'>): string | null {
     const user = this.auth.user();
     if (!user) {
       this.error.set('Sign in before adding reminders.');
@@ -70,19 +70,19 @@ export class ReminderStore {
     };
 
     this.remindersSignal.update((reminders) => [nextReminder, ...reminders]);
+    void setDoc(doc(this.collectionFor(user.uid), id), nextReminder)
+      .then(() => {
+        this.error.set('');
+      })
+      .catch(() => {
+        this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== id));
+        this.error.set('Could not save that reminder. Try again in a moment.');
+      });
 
-    try {
-      await setDoc(doc(this.collectionFor(user.uid), id), nextReminder);
-      this.error.set('');
-      return id;
-    } catch {
-      this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== id));
-      this.error.set('Could not save that reminder. Try again in a moment.');
-      return null;
-    }
+    return id;
   }
 
-  async toggle(id: string): Promise<Reminder | null> {
+  toggle(id: string): Reminder | null {
     const user = this.auth.user();
     const reminder = this.reminders().find((candidate) => candidate.id === id);
     if (!user || !reminder) {
@@ -91,24 +91,26 @@ export class ReminderStore {
     }
 
     const completed = !reminder.completed;
+    const updatedReminder = { ...reminder, completed };
     this.remindersSignal.update((reminders) =>
-      reminders.map((candidate) => (candidate.id === id ? { ...candidate, completed } : candidate))
+      reminders.map((candidate) => (candidate.id === id ? updatedReminder : candidate))
     );
 
-    try {
-      await updateDoc(doc(this.collectionFor(user.uid), id), { completed });
-      this.error.set('');
-      return { ...reminder, completed };
-    } catch {
-      this.remindersSignal.update((reminders) =>
-        reminders.map((candidate) => (candidate.id === id ? reminder : candidate))
-      );
-      this.error.set('Could not update that reminder. Try again in a moment.');
-      return null;
-    }
+    void updateDoc(doc(this.collectionFor(user.uid), id), { completed })
+      .then(() => {
+        this.error.set('');
+      })
+      .catch(() => {
+        this.remindersSignal.update((reminders) =>
+          reminders.map((candidate) => (candidate.id === id ? reminder : candidate))
+        );
+        this.error.set('Could not update that reminder. Try again in a moment.');
+      });
+
+    return updatedReminder;
   }
 
-  async remove(id: string): Promise<void> {
+  remove(id: string): void {
     const user = this.auth.user();
     if (!user) {
       this.error.set('Sign in before deleting reminders.');
@@ -118,13 +120,14 @@ export class ReminderStore {
     const previous = this.reminders();
     this.remindersSignal.set(previous.filter((reminder) => reminder.id !== id));
 
-    try {
-      await deleteDoc(doc(this.collectionFor(user.uid), id));
+    void deleteDoc(doc(this.collectionFor(user.uid), id))
+      .then(() => {
       this.error.set('');
-    } catch {
-      this.remindersSignal.set(previous);
-      this.error.set('Could not delete that reminder. Try again in a moment.');
-    }
+      })
+      .catch(() => {
+        this.remindersSignal.set(previous);
+        this.error.set('Could not delete that reminder. Try again in a moment.');
+      });
   }
 
   private collectionFor(uid: string) {
