@@ -1,0 +1,194 @@
+<main class="home-shell">
+  <!-- Psychology: spatial orientation. The scroll line shows where the user is on the page so long mobile sessions do not feel lost. -->
+  <div class="scroll-progress" aria-hidden="true" [class.native-timeline]="useNativeScrollTimeline">
+    <span [style.transform]="useNativeScrollTimeline ? null : scrollProgressTransform()"></span>
+  </div>
+
+  <!-- Psychology: cognitive load reduction. The home page starts with one obvious capture area instead of a dashboard of equal choices. -->
+  <section class="home-card" data-entry-card data-resize-card>
+    <header class="home-header">
+      <div>
+        <p class="eyebrow brand-mark">Solarray</p>
+        <h1>{{ greeting() }}</h1>
+      </div>
+
+      <button class="quiet-button sign-out-button" type="button" (click)="signOut()">
+        <span>Sign out</span>
+        <i class="pi pi-sign-out"></i>
+      </button>
+    </header>
+
+    <!-- Psychology: Fogg/Tiny Habits. The smallest useful behavior is "type one thing, tap plus"; details stay optional. -->
+    <section class="capture-zone" aria-labelledby="capture-title">
+      <div class="intent-marker">
+        <span>Start here</span>
+      </div>
+
+      <form class="capture-form" (ngSubmit)="addReminder()">
+        <label class="capture-label" for="quick-capture">
+          <span id="capture-title">One thing to remember</span>
+        </label>
+
+        <div class="capture-row">
+          <input
+            id="quick-capture"
+            #quickCapture
+            name="title"
+            [ngModel]="title()"
+            (ngModelChange)="title.set($event)"
+            placeholder="Type it, tap plus, move on"
+            autocomplete="off"
+            enterkeyhint="done"
+            required
+          >
+          <button #addButton class="add-button" type="submit" aria-label="Add reminder">
+            <span class="capture-burst" aria-hidden="true"></span>
+            <i class="pi pi-plus"></i>
+          </button>
+        </div>
+
+        <button class="details-toggle" type="button" (click)="toggleDetails()">
+          <span>{{ detailsOpen() ? 'Less' : 'Time, place, or type' }}</span>
+          <i class="pi" [ngClass]="detailsOpen() ? 'pi-angle-up' : 'pi-angle-down'"></i>
+        </button>
+
+        @if (detailsRendered()) {
+          <!-- Psychology: progressive disclosure. Optional fields appear only after intent, reducing reading and decision effort. -->
+          <div #detailsPanel class="details-panel">
+            <div class="type-rail" aria-label="Reminder type">
+              <button type="button" [class.active]="kind() === 'todo'" (click)="setKind('todo')">
+                <i class="pi pi-check-circle"></i>
+                Task
+              </button>
+              <button type="button" [class.active]="kind() === 'location'" (click)="setKind('location')">
+                <i class="pi pi-map-marker"></i>
+                Place
+              </button>
+              <button type="button" [class.active]="kind() === 'habit'" (click)="setKind('habit')">
+                <i class="pi pi-refresh"></i>
+                Habit
+              </button>
+              <button type="button" [class.active]="kind() === 'note'" (click)="setKind('note')">
+                <i class="pi pi-book"></i>
+                Note
+              </button>
+            </div>
+
+            <label class="field">
+              <span>When</span>
+              <input name="dueAt" type="datetime-local" [ngModel]="dueAt()" (ngModelChange)="dueAt.set($event)">
+            </label>
+
+            <label class="field">
+              <span>Notes</span>
+              <textarea name="notes" [ngModel]="notes()" (ngModelChange)="notes.set($event)" rows="3" placeholder="Only if it helps"></textarea>
+            </label>
+
+            @if (kind() === 'location') {
+              <div class="place-grid">
+                <label class="field">
+                  <span>Place</span>
+                  <input name="placeLabel" [ngModel]="placeLabel()" (ngModelChange)="placeLabel.set($event)" placeholder="Gym, office, shop">
+                </label>
+                <label class="field">
+                  <span>Radius</span>
+                  <input name="radius" type="number" min="50" step="50" [ngModel]="radiusMeters()" (ngModelChange)="radiusMeters.set(+$event)">
+                </label>
+                <label class="field">
+                  <span>Latitude</span>
+                  <input name="latitude" [ngModel]="latitude()" (ngModelChange)="latitude.set($event)" inputmode="decimal" placeholder="-26.2041">
+                </label>
+                <label class="field">
+                  <span>Longitude</span>
+                  <input name="longitude" [ngModel]="longitude()" (ngModelChange)="longitude.set($event)" inputmode="decimal" placeholder="28.0473">
+                </label>
+                <button class="quiet-button place-button" type="button" (click)="useCurrentLocation()">
+                  <i class="pi pi-crosshairs"></i>
+                  Use current location
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </form>
+    </section>
+  </section>
+
+  <!-- Psychology: Zeigarnik effect. One clear "Next up" item channels unfinished-task tension into a single calm action. -->
+  <section class="focus-stack">
+    <section class="next-card" aria-live="polite" data-entry-card data-resize-card>
+      <div class="section-kicker">
+        <span class="pulse-dot"></span>
+        <p>Next up</p>
+      </div>
+
+      @if (nextReminder(); as next) {
+        <article class="next-item" [class.completing]="completingId() === next.id" data-motion-item [attr.data-reminder-id]="next.id">
+          <button class="big-check" type="button" (click)="completeReminder(next.id)" aria-label="Mark next reminder complete">
+            <span class="check-ripple" aria-hidden="true"></span>
+            <i class="pi pi-check"></i>
+          </button>
+          <div class="task-copy">
+            <h2>{{ next.title }}</h2>
+            <p>
+              {{ next.dueAt | date:'EEE, HH:mm' }}
+              @if (next.location) {
+                <span> · {{ next.location.label }}</span>
+              }
+            </p>
+          </div>
+        </article>
+      } @else {
+        <div class="empty-next">
+          <i class="pi pi-moon"></i>
+          <h2>Nothing urgent.</h2>
+          <p>Add one small thing when it appears.</p>
+        </div>
+      }
+    </section>
+
+    @if (laterReminders().length) {
+      <!-- Psychology: cognitive load reduction. Later items are deliberately quieter and capped so the list does not compete with "Next up". -->
+      <section class="later-card" data-entry-card data-resize-card>
+        <div class="compact-heading">
+          <p>Later</p>
+          <span>{{ laterReminders().length }}</span>
+        </div>
+
+        <div class="later-list">
+          @for (reminder of laterReminders(); track reminder.id) {
+            <article [class.completing]="completingId() === reminder.id" data-motion-item [attr.data-reminder-id]="reminder.id">
+              <button class="small-check" type="button" (click)="completeReminder(reminder.id)" aria-label="Mark reminder complete">
+                <span class="check-ripple" aria-hidden="true"></span>
+                <i class="pi pi-circle"></i>
+              </button>
+              <div class="task-copy">
+                <h3>{{ reminder.title }}</h3>
+                <p>{{ reminder.dueAt | date:'HH:mm' }}</p>
+              </div>
+              <button class="ghost-icon" type="button" (click)="deleteReminder(reminder.id)" aria-label="Delete reminder">
+                <i class="pi pi-trash"></i>
+              </button>
+            </article>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Psychology: recognition over recall. Quiet signal tiles expose system state without making the user read settings screens. -->
+    <section class="signal-card" aria-label="Quiet signals" data-entry-card data-resize-card>
+      <button type="button" (click)="toggleLocationWatch()">
+        <i class="pi" [ngClass]="location.isWatching() ? 'pi-stop-circle' : 'pi-map-marker'"></i>
+        <span>{{ location.isWatching() ? 'Location on' : 'Location off' }}</span>
+      </button>
+      <button type="button" (click)="requestNotifications()">
+        <i class="pi pi-bell"></i>
+        <span>{{ notifications.permission() }}</span>
+      </button>
+      <div>
+        <strong>{{ displayedCompletionRate() }}%</strong>
+        <span>done</span>
+      </div>
+    </section>
+  </section>
+</main>

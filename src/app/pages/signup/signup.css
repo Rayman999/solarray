@@ -1,0 +1,286 @@
+:host {
+  display: block;
+}
+
+.auth-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(22rem, 0.95fr);
+  min-height: 100vh;
+}
+
+.visual-pane {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  padding: 3rem;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, rgba(240, 201, 135, 0.1), transparent 65%),
+    var(--bg);
+  border-right: 1px solid var(--line);
+}
+
+.glow-orb {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  width: 16rem;
+  height: 16rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 35%, rgba(240, 201, 135, 0.55), rgba(240, 201, 135, 0.05) 60%, transparent 75%);
+  filter: blur(2px);
+  transform: translate(-50%, -50%);
+  animation: breathe 7s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
+  50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+}
+
+.orbit {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+}
+
+.orbit-outer {
+  width: 30rem;
+  height: 30rem;
+  border-color: rgba(240, 201, 135, 0.1);
+  animation: spin 90s linear infinite;
+}
+
+.orbit-inner {
+  width: 22rem;
+  height: 22rem;
+  animation: spin 60s linear infinite reverse;
+}
+
+@keyframes spin {
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.stars {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.5) 0.6px, transparent 0.6px),
+    radial-gradient(rgba(255, 255, 255, 0.3) 0.6px, transparent 0.6px);
+  background-size: 160px 160px, 95px 95px;
+  background-position: 0 0, 48px 64px;
+  animation: drift 140s linear infinite;
+}
+
+@keyframes drift {
+  to { background-position: 160px 160px, 48px -32px; }
+}
+
+.visual-copy {
+  position: relative;
+  z-index: 1;
+  max-width: 26rem;
+}
+
+.visual-copy h2 {
+  margin: 0.6rem 0 0.75rem;
+  font-size: clamp(1.6rem, 3vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.visual-copy p:last-child {
+  margin: 0;
+  max-width: 24rem;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.form-pane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem;
+}
+
+.form-card {
+  width: min(100%, 24rem);
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0.6rem 0 0;
+  font-size: clamp(1.9rem, 3.4vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.lede {
+  margin: 0.6rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 1.35rem;
+  margin-top: 2.25rem;
+}
+
+.auth-form p-floatlabel,
+.auth-form p-button,
+.auth-form ::ng-deep .p-floatlabel,
+.auth-form ::ng-deep .p-password,
+.auth-form ::ng-deep input {
+  width: 100%;
+}
+
+.auth-form p-button.magnetic-glow {
+  display: block;
+  margin-top: 0.4rem;
+  border-radius: 0.9rem;
+}
+
+.auth-form p-button.magnetic-glow::after {
+  content: none;
+}
+
+.forgot-link {
+  justify-self: end;
+  margin-top: -0.7rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+.forgot-link:hover {
+  color: var(--accent);
+}
+
+.auth-error {
+  margin-top: -0.4rem;
+  border: 1px solid rgba(217, 148, 148, 0.3);
+  border-radius: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  color: var(--rose);
+  font-size: 0.85rem;
+}
+
+.auth-form ::ng-deep .submit-button {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 3.1rem;
+  border: 1px solid rgba(240, 201, 135, 0.72);
+  border-radius: 0.9rem;
+  background: linear-gradient(180deg, #f5dda0 0%, var(--accent) 100%);
+  color: var(--accent-ink);
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px rgba(5, 7, 11, 0.82) inset,
+    0 8px 22px rgba(240, 201, 135, 0.1),
+    0 24px 54px rgba(0, 0, 0, 0.36);
+  transition: border-color 180ms ease, box-shadow 220ms ease, filter 180ms ease;
+}
+
+.auth-form p-button.auth-ready ::ng-deep .submit-button {
+  box-shadow:
+    0 0 0 1px rgba(5, 7, 11, 0.82) inset,
+    0 10px 28px rgba(240, 201, 135, 0.18),
+    0 24px 54px rgba(0, 0, 0, 0.36);
+}
+
+.auth-form ::ng-deep .submit-button:not(:disabled):hover {
+  border-color: rgba(240, 201, 135, 0.92);
+  box-shadow:
+    0 0 0 1px rgba(5, 7, 11, 0.82) inset,
+    0 12px 30px rgba(240, 201, 135, 0.2),
+    0 26px 58px rgba(0, 0, 0, 0.38);
+  filter: brightness(1.03);
+}
+
+.auth-form p-button.auth-ready.is-magnetized ::ng-deep .submit-button {
+  border-color: rgba(240, 201, 135, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(5, 7, 11, 0.82) inset,
+    0 14px 34px rgba(240, 201, 135, 0.24),
+    0 30px 64px rgba(0, 0, 0, 0.42);
+  filter: brightness(1.035);
+}
+
+.auth-form ::ng-deep .submit-button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(5, 7, 11, 0.82) inset,
+    0 0 0 3px rgba(240, 201, 135, 0.22),
+    0 12px 30px rgba(240, 201, 135, 0.2),
+    0 26px 58px rgba(0, 0, 0, 0.38);
+}
+
+.auth-form ::ng-deep .submit-button:active {
+  filter: brightness(0.98);
+}
+
+.auth-form ::ng-deep .submit-button.success::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  animation: success-burst 900ms ease-out;
+  pointer-events: none;
+}
+
+@keyframes success-burst {
+  from { box-shadow: 0 0 0 0 rgba(240, 201, 135, 0.4); }
+  to { box-shadow: 0 0 0 16px rgba(240, 201, 135, 0); }
+}
+
+.switch-line {
+  margin-top: 1.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.switch-line a {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.switch-line a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 920px) {
+  .auth-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .visual-pane {
+    display: none;
+  }
+
+  .form-pane {
+    flex: 1;
+    padding: 1.75rem 1.5rem;
+  }
+}

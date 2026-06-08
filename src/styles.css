@@ -1,0 +1,157 @@
+@import "tailwindcss";
+@import "primeicons/primeicons.css";
+
+:root {
+  color-scheme: dark;
+  --bg: #05070b;
+  --surface: rgba(255, 255, 255, 0.04);
+  --surface-strong: rgba(255, 255, 255, 0.075);
+  --ink: #eef1f5;
+  --muted: #828d9b;
+  --line: rgba(255, 255, 255, 0.09);
+  --accent: #f0c987;
+  --accent-ink: #1c1408;
+  --green: #93b6a0;
+  --rose: #d99494;
+  --ease-calm: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-reward: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --motion-fast: 160ms;
+  --motion-medium: 260ms;
+  --accent-shadow: 0 10px 28px rgba(240, 201, 135, 0.16), 0 24px 54px rgba(0, 0, 0, 0.36);
+  --accent-shadow-hover: 0 12px 30px rgba(240, 201, 135, 0.2), 0 26px 58px rgba(0, 0, 0, 0.38);
+}
+
+html {
+  min-height: 100%;
+  background: var(--bg);
+}
+
+body {
+  position: relative;
+  min-height: 100%;
+  margin: 0;
+  background:
+    radial-gradient(ellipse 55% 45% at 84% -8%, rgba(240, 201, 135, 0.09), transparent 60%),
+    radial-gradient(ellipse 45% 40% at 4% 108%, rgba(130, 141, 155, 0.07), transparent 65%),
+    var(--bg);
+  color: var(--ink);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  display: block;
+  pointer-events: none;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.5) 0.6px, transparent 0.6px),
+    radial-gradient(rgba(255, 255, 255, 0.3) 0.6px, transparent 0.6px);
+  background-size: 160px 160px, 95px 95px;
+  background-position: 0 0, 48px 64px;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.32, 0.08, 0.24, 1);
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  animation-name: page-glide-out;
+}
+
+::view-transition-new(root) {
+  animation-name: page-glide-in;
+}
+
+@keyframes page-glide-out {
+  to {
+    transform: translateX(-3.5%) scale(0.985);
+    opacity: 0;
+  }
+}
+
+@keyframes page-glide-in {
+  from {
+    transform: translateX(3.5%) scale(0.985);
+    opacity: 0;
+  }
+}
+
+.brand-mark {
+  view-transition-name: solarray-brand;
+}
+
+::view-transition-group(solarray-brand) {
+  animation-duration: 480ms;
+  animation-timing-function: cubic-bezier(0.32, 0.08, 0.24, 1);
+}
+
+/* Magnetic hover halo — pairs with the [appMagnetic] directive (src/app/shared/magnetic.directive.ts).
+   The directive nudges the element toward the cursor; this glow gives the pull a "charged" feel. */
+.magnetic-glow {
+  position: relative;
+  isolation: isolate;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.magnetic-glow::after {
+  content: '';
+  position: absolute;
+  inset: -0.85rem;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle at center, rgba(240, 201, 135, 0.22), transparent 72%);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 260ms ease, transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.magnetic-glow:hover::after,
+.magnetic-glow:focus-visible::after,
+.magnetic-glow.is-magnetized::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .magnetic-glow::after,
+  .magnetic-glow:hover::after,
+  .magnetic-glow:focus-visible::after {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(240, 201, 135, 0.5);
+  outline-offset: 2px;
+}

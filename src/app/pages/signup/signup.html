@@ -1,0 +1,60 @@
+<main class="auth-shell">
+  <section class="visual-pane" aria-hidden="true">
+    <div class="orbit orbit-outer"></div>
+    <div class="orbit orbit-inner"></div>
+    <div class="glow-orb"></div>
+    <div class="stars"></div>
+
+    <div class="visual-copy">
+      <p class="eyebrow brand-mark">Solarray</p>
+      <h2>Start your own constellation of habits.</h2>
+      <p>One quiet place for tasks, places, and routines that move with you, wherever you go.</p>
+    </div>
+  </section>
+
+  <section class="form-pane">
+    <div class="form-card">
+      <p class="eyebrow">Get started</p>
+      <h1>Create your account</h1>
+      <p class="lede">Takes about a minute. No noise, ever.</p>
+
+      <form class="auth-form" (ngSubmit)="submit()">
+        <p-floatlabel variant="on">
+          <input pInputText id="name" name="name" type="text" autocomplete="name" [ngModel]="name()" (ngModelChange)="name.set($event)" required />
+          <label for="name">Name</label>
+        </p-floatlabel>
+
+        <p-floatlabel variant="on">
+          <input pInputText id="email" name="email" type="email" autocomplete="email" [ngModel]="email()" (ngModelChange)="email.set($event)" required />
+          <label for="email">Email</label>
+        </p-floatlabel>
+
+        <p-floatlabel variant="on">
+          <p-password inputId="password" name="password" [toggleMask]="true" [feedback]="true" autocomplete="new-password" [ngModel]="password()" (ngModelChange)="password.set($event)" required />
+          <label for="password">Password</label>
+        </p-floatlabel>
+
+        @if (status() === 'error') {
+          <p class="auth-error" role="alert">{{ errorMessage() }}</p>
+        }
+
+        <p-button
+          appMagnetic
+          [magneticStrength]="isFormReady() ? 0.18 : 0.045"
+          [magneticRadius]="isFormReady() ? 150 : 34"
+          type="submit"
+          styleClass="submit-button"
+          [label]="status() === 'success' ? 'You\'re in' : 'Create account'"
+          [icon]="status() === 'success' ? 'pi pi-check' : ''"
+          iconPos="right"
+          [loading]="status() === 'loading'"
+          [disabled]="status() !== 'idle'"
+          [class.auth-ready]="isFormReady()"
+          [class.success]="status() === 'success'"
+        />
+      </form>
+
+      <p class="switch-line">Already have an account? <a appMagnetic [magneticStrength]="0.5" routerLink="/login">Sign in</a></p>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,675 @@
+:host {
+  display: block;
+}
+
+.home-shell {
+  /* Psychology: thumb-zone comfort. Compact vertical rhythm keeps the primary action reachable on one-handed mobile use. */
+  display: grid;
+  gap: 0.65rem;
+  min-height: 100vh;
+  padding: 0.7rem;
+}
+
+.scroll-progress {
+  /* Psychology: spatial orientation. A quiet progress rail keeps the user's place visible while scrolling. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 8;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.scroll-progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--accent);
+}
+
+@supports (animation-timeline: scroll()) {
+  .scroll-progress.native-timeline span {
+    transform: scaleX(0);
+  }
+}
+
+.home-card,
+.next-card,
+.later-card,
+.signal-card {
+  /* Psychology: calm motivation. Hairline glass surfaces group decisions without adding heavy visual pressure. */
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: var(--surface);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(20px);
+}
+
+.home-card {
+  /* Psychology: one clear starting point. The capture card is the only elevated dominant surface; all follow-up cards stay quieter. */
+}
+
+.home-card {
+  padding: 0.85rem;
+}
+
+.home-card::after {
+  content: '';
+  position: absolute;
+  top: -7.5rem;
+  right: -7rem;
+  width: 13rem;
+  height: 13rem;
+  border: 1px solid rgba(240, 201, 135, 0.12);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.home-header,
+.capture-zone {
+  position: relative;
+  z-index: 1;
+}
+
+.home-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sign-out-button {
+  flex-shrink: 0;
+}
+
+.eyebrow,
+.section-kicker p,
+.compact-heading p,
+.capture-label span,
+.field span {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.brand-mark {
+  color: var(--accent);
+  letter-spacing: 0.28em;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  margin-top: 0.35rem;
+  color: var(--ink);
+  font-size: clamp(1.75rem, 10vw, 3.2rem);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+.capture-zone {
+  margin-top: 1.25rem;
+}
+
+.intent-marker {
+  /* Psychology: prompt clarity. A small "Start here" cue directs attention without creating another large CTA. */
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(240, 201, 135, 0.2);
+  border-radius: 999px;
+  background: rgba(240, 201, 135, 0.06);
+  padding: 0.28rem 0.55rem;
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.intent-marker::before {
+  content: '';
+  width: 0.36rem;
+  height: 0.36rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.2rem rgba(240, 201, 135, 0.08);
+}
+
+.capture-form {
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.65rem;
+}
+
+.capture-label {
+  display: block;
+}
+
+.capture-label span {
+  color: var(--accent);
+}
+
+.capture-row {
+  /* Psychology: friction reduction. Input and add button are one motor unit: type, tap, done. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 2.85rem;
+  gap: 0.45rem;
+}
+
+.capture-row input,
+.field input,
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  /* Psychology: microinteraction feedback. Focus glow answers "I can type here" without adding another instruction. */
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+}
+
+.capture-row input {
+  min-height: 2.85rem;
+  padding: 0 0.85rem;
+  font-size: 0.94rem;
+}
+
+.capture-row input::placeholder,
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(130, 141, 155, 0.6);
+}
+
+.capture-row input:focus,
+.field input:focus,
+.field textarea:focus {
+  border-color: rgba(240, 201, 135, 0.45);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 0 3px rgba(240, 201, 135, 0.1);
+  outline: none;
+}
+
+.add-button,
+.details-toggle,
+.quiet-button,
+.signal-card button,
+.big-check,
+.small-check,
+.ghost-icon {
+  transition: transform 180ms var(--ease-calm), border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow 220ms ease, color var(--motion-fast) ease, filter var(--motion-fast) ease;
+}
+
+.add-button {
+  position: relative;
+  display: grid;
+  width: 2.85rem;
+  height: 2.85rem;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid rgba(240, 201, 135, 0.72);
+  border-radius: 0.82rem;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-shadow);
+}
+
+.add-button i {
+  position: relative;
+  z-index: 1;
+}
+
+.capture-burst {
+  /* Psychology: immediate feedback. The burst lives on the action origin, making capture feel acknowledged without visual noise. */
+  position: absolute;
+  inset: -0.3rem;
+  border: 1px solid rgba(240, 201, 135, 0.34);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.35);
+}
+
+.add-button:hover {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  box-shadow: var(--accent-shadow-hover);
+  transform: translateY(-1px);
+}
+
+.details-toggle,
+.quiet-button {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.78rem;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.details-toggle:hover,
+.quiet-button:hover {
+  border-color: rgba(240, 201, 135, 0.4);
+  background: rgba(240, 201, 135, 0.05);
+  color: var(--accent);
+}
+
+.details-panel {
+  /* Psychology: progressive disclosure. Details animate in quickly so optional complexity feels available, not permanent. */
+  display: grid;
+  gap: 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+  background: rgba(255, 255, 255, 0.018);
+  padding: 0.65rem;
+}
+
+.type-rail {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.type-rail button {
+  display: grid;
+  min-height: 2.65rem;
+  place-items: center;
+  gap: 0.2rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.018);
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.type-rail button.active {
+  border-color: rgba(240, 201, 135, 0.46);
+  background: rgba(240, 201, 135, 0.08);
+  color: var(--accent);
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.field input,
+.field textarea {
+  padding: 0.7rem 0.8rem;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.place-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.focus-stack {
+  display: grid;
+  gap: 0.65rem;
+  align-items: start;
+}
+
+.next-card,
+.later-card {
+  padding: 0.85rem;
+}
+
+.next-card {
+  /* Psychology: spatial memory. The primary slot keeps a steady footprint so adding/completing tasks does not make the page bounce. */
+  min-height: 7.75rem;
+}
+
+.later-card {
+  /* Psychology: cognitive load reduction. The secondary queue reserves predictable space for the capped three-item list. */
+  min-height: 14.75rem;
+}
+
+.section-kicker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pulse-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.next-item {
+  /* Psychology: single-action bias. The check control is larger than secondary actions because completion is the desired next behavior. */
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.78rem;
+  margin-top: 0.8rem;
+  min-height: 3.35rem;
+  border: 1px solid transparent;
+  border-radius: 0.85rem;
+  padding: 0.28rem 0.55rem 0.28rem 0.28rem;
+}
+
+.big-check {
+  position: relative;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid rgba(240, 201, 135, 0.42);
+  border-radius: 0.85rem;
+  background: rgba(240, 201, 135, 0.08);
+  color: var(--accent);
+}
+
+.check-ripple {
+  /* Psychology: micro-win feedback. The ripple says "the app heard me" at the exact touch target. */
+  position: absolute;
+  inset: -0.34rem;
+  border: 1px solid rgba(240, 201, 135, 0.36);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.72);
+}
+
+.big-check:hover {
+  background: rgba(240, 201, 135, 0.13);
+  transform: translateY(-1px);
+}
+
+.next-item.completing,
+.later-list article.completing {
+  /* Psychology: Zeigarnik relief. The completed open loop leaves upward quickly, confirming closure without lingering. */
+  border-color: rgba(240, 201, 135, 0.18);
+  background:
+    linear-gradient(90deg, rgba(240, 201, 135, 0.08), rgba(240, 201, 135, 0.02) 62%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(240, 201, 135, 0.03);
+}
+
+.next-item.completing .task-copy,
+.later-list article.completing .task-copy {
+  opacity: 0.82;
+}
+
+.next-item.completing p,
+.later-list article.completing p {
+  color: color-mix(in srgb, var(--muted) 78%, var(--accent));
+}
+
+.next-item h2,
+.empty-next h2 {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 1.08rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.next-item p,
+.empty-next p,
+.later-list p,
+.signal-card span {
+  color: var(--muted);
+}
+
+.next-item p {
+  margin-top: 0.24rem;
+  font-size: 0.82rem;
+}
+
+.empty-next {
+  display: grid;
+  min-height: 7rem;
+  place-items: center;
+  padding: 0.85rem;
+  text-align: center;
+}
+
+.empty-next i {
+  color: var(--accent);
+  font-size: 1.15rem;
+}
+
+.empty-next h2 {
+  margin-top: 0.65rem;
+}
+
+.empty-next p {
+  margin-top: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.compact-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compact-heading span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  color: var(--accent);
+  font-size: 0.78rem;
+}
+
+.later-list {
+  display: grid;
+  grid-auto-rows: 3.55rem;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+  overflow: hidden;
+}
+
+.later-list article {
+  /* Psychology: Zeigarnik effect, softened. Later tasks remain visible enough to trust, but visually quieter than the active open loop. */
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.5rem;
+  min-height: 3.55rem;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, transform 220ms var(--ease-calm), opacity 220ms ease;
+}
+
+.later-list article:hover {
+  /* Psychology: recognition over recall. A faint lift on hover confirms the row is interactive without competing with Next Up. */
+  border-color: rgba(240, 201, 135, 0.2);
+  background: rgba(255, 255, 255, 0.035);
+  transform: translateY(-1px);
+}
+
+.later-list h3 {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.later-list p {
+  margin-top: 0.15rem;
+  font-size: 0.78rem;
+}
+
+.small-check,
+.ghost-icon {
+  position: relative;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid var(--line);
+  border-radius: 0.62rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+
+.small-check:hover {
+  border-color: rgba(240, 201, 135, 0.4);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.ghost-icon:hover {
+  border-color: rgba(217, 148, 148, 0.4);
+  color: var(--rose);
+  transform: translateY(-1px);
+}
+
+.signal-card {
+  /* Psychology: recognition over recall. Three small signals replace separate settings/status panels. */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  padding: 0.5rem;
+}
+
+.signal-card button,
+.signal-card div {
+  display: grid;
+  min-height: 2.9rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.72rem;
+  background: rgba(255, 255, 255, 0.018);
+  color: var(--muted);
+  text-align: center;
+}
+
+.signal-card button:hover {
+  border-color: rgba(240, 201, 135, 0.4);
+  color: var(--accent);
+}
+
+.signal-card strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.signal-card span {
+  max-width: 6rem;
+  overflow: hidden;
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.details-toggle:active,
+.quiet-button:active,
+.signal-card button:active,
+.big-check:active,
+.small-check:active,
+.ghost-icon:active,
+.type-rail button:active {
+  transform: scale(0.96);
+}
+
+@media (min-width: 760px) {
+  .home-shell {
+    width: min(100%, 72rem);
+    margin-inline: auto;
+    padding: 1rem;
+  }
+
+  .focus-stack {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.58fr);
+  }
+
+  .next-card {
+    grid-row: span 2;
+  }
+
+  .place-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .place-button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 430px) {
+  .home-shell {
+    padding: 0.6rem;
+  }
+
+  .home-card,
+  .next-card,
+  .later-card,
+  .signal-card {
+    border-radius: 0.9rem;
+  }
+
+  .type-rail button {
+    font-size: 0.66rem;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .add-button:hover,
+  .details-toggle:hover,
+  .quiet-button:hover,
+  .signal-card button:hover,
+  .big-check:hover,
+  .small-check:hover,
+  .ghost-icon:hover,
+  .later-list article:hover {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-progress span {
+    transform: scaleX(0);
+  }
+
+  .add-button,
+  .details-toggle,
+  .quiet-button,
+  .signal-card button,
+  .big-check,
+  .small-check,
+  .ghost-icon,
+  .later-list article,
+  .capture-row input,
+  .field input,
+  .field textarea {
+    transition: none;
+  }
+}

@@ -1,0 +1,23 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+/dist
+/tmp
+/.tmp
+/out-tsc
+/bazel-out
+/node_modules
+.angular/cache
+
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+.env
+.env.local
+.firebase
+firebase-debug.log
+firestore-debug.log
+
+.idea
+.vscode/*
+!.vscode/extensions.json

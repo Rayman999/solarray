@@ -1,0 +1,7 @@
+services:
+  solarray:
+    build: .
+    image: solarray-reminders:latest
+    restart: unless-stopped
+    ports:
+      - "8080:80"
