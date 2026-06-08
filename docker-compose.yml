@@ -1,7 +1,11 @@
+version: "3.8"
+
 services:
   solarray:
-    build: .
-    image: solarray-reminders:latest
-    restart: unless-stopped
+    image: ghcr.io/rayman999/solarray:latest
     ports:
-      - "8080:80"
+      - "8095:80"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: any
