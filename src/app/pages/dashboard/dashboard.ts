@@ -191,6 +191,9 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     };
 
     this.playCaptureFlow();
+    if (!this.auth.user()) {
+      return;
+    }
     this.store.add(reminder);
 
     this.resetCaptureForm();

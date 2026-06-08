@@ -22,6 +22,7 @@ export class ReminderStore {
   private readonly auth = inject(AuthService);
   private readonly db = getFirebaseFirestore();
   private readonly remindersSignal = signal<Reminder[]>([]);
+  private readonly pendingWrites = new Map<string, Reminder>();
   private unsubscribeReminders?: Unsubscribe;
 
   readonly reminders = this.remindersSignal.asReadonly();
@@ -46,21 +47,29 @@ export class ReminderStore {
       this.unsubscribeReminders = onSnapshot(
         remindersQuery,
         (snapshot) => {
+          const syncedReminders = snapshot.docs.map(toReminder);
+          const syncedIds = new Set(syncedReminders.map((reminder) => reminder.id));
+          const pendingReminders = Array.from(this.pendingWrites.values()).filter((reminder) => !syncedIds.has(reminder.id));
+
           this.error.set('');
-          this.remindersSignal.set(snapshot.docs.map(toReminder));
+          this.remindersSignal.set([...pendingReminders, ...syncedReminders]);
         },
-        () => this.error.set('Could not sync reminders. Check Firestore rules and your connection.')
+        (error) => {
+          console.error('Solarray reminder sync failed', error);
+          this.error.set('Could not sync reminders. Check Firestore rules and your connection.');
+        }
       );
     });
   }
 
-  add(reminder: Reminder): void {
+  add(reminder: Reminder): boolean {
     const user = this.auth.user();
     if (!user) {
       this.error.set('Sign in before adding reminders.');
-      return;
+      return false;
     }
 
+    this.pendingWrites.set(reminder.id, reminder);
     this.remindersSignal.update((reminders) =>
       reminders.some((candidate) => candidate.id === reminder.id)
         ? reminders.map((candidate) => (candidate.id === reminder.id ? reminder : candidate))
@@ -69,12 +78,16 @@ export class ReminderStore {
     void setDoc(doc(this.collectionFor(user.uid), reminder.id), toFirestoreReminder(reminder))
       .then(() => {
         this.error.set('');
+        window.setTimeout(() => this.pendingWrites.delete(reminder.id), 1_500);
       })
       .catch((error) => {
         console.error('Solarray reminder save failed', error);
+        this.pendingWrites.delete(reminder.id);
         this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== reminder.id));
         this.error.set('Could not save that reminder. Try again in a moment.');
       });
+
+    return true;
   }
 
   toggle(id: string): Reminder | null {
