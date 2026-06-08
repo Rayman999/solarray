@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
+@import "leaflet/dist/leaflet.css";
 
 :root {
   color-scheme: dark;

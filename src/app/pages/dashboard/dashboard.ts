@@ -3,6 +3,7 @@ import { AfterViewInit, Component, computed, ElementRef, HostListener, inject, O
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { gsap } from 'gsap';
+import * as L from 'leaflet';
 
 import { AuthService } from '../../auth.service';
 import { LocationReminderService } from '../../location-reminder.service';
@@ -39,6 +40,12 @@ const MOTION = {
 
 type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | `task-${string}`;
 
+interface PlaceSearchResult {
+  display_name: string;
+  lat: string;
+  lon: string;
+}
+
 @Component({
   selector: 'app-dashboard',
   imports: [CommonModule, DatePipe, FormsModule],
@@ -55,6 +62,14 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   @ViewChild('addButton') private addButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('quickCapture') private quickCapture?: ElementRef<HTMLInputElement>;
   @ViewChild('detailsPanel') private detailsPanel?: ElementRef<HTMLElement>;
+  @ViewChild('placeMap') private set placeMapRef(element: ElementRef<HTMLElement> | undefined) {
+    if (!element) {
+      return;
+    }
+
+    this.placeMapElement = element.nativeElement;
+    window.requestAnimationFrame(() => this.ensurePlaceMap());
+  }
 
   readonly detailsOpen = signal(false);
   readonly detailsRendered = signal(false);
@@ -63,6 +78,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly kind = signal<ReminderKind>('todo');
   readonly dueAt = signal(toLocalInputValue(new Date(Date.now() + 1000 * 60 * 60)));
   readonly placeLabel = signal('');
+  readonly placeSearch = signal('');
+  readonly placeResults = signal<PlaceSearchResult[]>([]);
+  readonly placeSearchLoading = signal(false);
+  readonly placeSearchError = signal('');
   readonly latitude = signal('');
   readonly longitude = signal('');
   readonly radiusMeters = signal(250);
@@ -75,6 +94,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   private readonly timelines = new Map<MotionKey, gsap.core.Timeline>();
   private scrollFrame = 0;
+  private placeMapElement?: HTMLElement;
+  private placeMap?: L.Map;
+  private placeMarker?: L.Marker;
+  private placeCircle?: L.Circle;
 
   readonly completionRate = computed(() => {
     const total = this.store.reminders().length;
@@ -121,6 +144,8 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     if (this.scrollFrame) {
       window.cancelAnimationFrame(this.scrollFrame);
     }
+
+    this.placeMap?.remove();
   }
 
   @HostListener('window:scroll')
@@ -188,6 +213,9 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   setKind(kind: ReminderKind): void {
     // Psychology: friction reduction. Selecting a type should not force another panel transition or extra decision.
     this.kind.set(kind);
+    if (kind === 'location') {
+      window.requestAnimationFrame(() => this.ensurePlaceMap());
+    }
   }
 
   completeReminder(id: string): void {
@@ -256,10 +284,56 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.latitude.set(position.latitude.toFixed(6));
-    this.longitude.set(position.longitude.toFixed(6));
-    this.placeLabel.set('Current location');
+    this.setSelectedPlace(position.latitude, position.longitude, 'Current location', 17);
     this.kind.set('location');
+  }
+
+  setRadius(value: number): void {
+    this.radiusMeters.set(Number.isFinite(value) ? value : 250);
+    this.syncPlaceCircle();
+  }
+
+  async searchPlaces(): Promise<void> {
+    const query = this.placeSearch().trim();
+    if (query.length < 3) {
+      this.placeSearchError.set('Type at least 3 characters.');
+      this.placeResults.set([]);
+      return;
+    }
+
+    this.placeSearchLoading.set(true);
+    this.placeSearchError.set('');
+
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        format: 'jsonv2',
+        limit: '5',
+        addressdetails: '1'
+      });
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+        headers: { Accept: 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error('Place search failed.');
+      }
+
+      const results = (await response.json()) as PlaceSearchResult[];
+      this.placeResults.set(results);
+      this.placeSearchError.set(results.length ? '' : 'No places found.');
+    } catch {
+      this.placeResults.set([]);
+      this.placeSearchError.set('Could not search places right now.');
+    } finally {
+      this.placeSearchLoading.set(false);
+    }
+  }
+
+  choosePlace(result: PlaceSearchResult): void {
+    this.setSelectedPlace(Number(result.lat), Number(result.lon), result.display_name, 16);
+    this.placeSearch.set(result.display_name);
+    this.placeResults.set([]);
   }
 
   private readCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
@@ -274,6 +348,85 @@ export class Dashboard implements AfterViewInit, OnDestroy {
         { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 }
       );
     });
+  }
+
+  private ensurePlaceMap(): void {
+    if (!this.placeMapElement || this.kind() !== 'location') {
+      return;
+    }
+
+    if (this.placeMap) {
+      this.placeMap.invalidateSize();
+      return;
+    }
+
+    const latitude = Number(this.latitude());
+    const longitude = Number(this.longitude());
+    const center: L.LatLngExpression =
+      Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : [-26.2041, 28.0473];
+
+    this.placeMap = L.map(this.placeMapElement, {
+      zoomControl: false,
+      attributionControl: false
+    }).setView(center, Number.isFinite(latitude) && Number.isFinite(longitude) ? 16 : 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(this.placeMap);
+    L.control.zoom({ position: 'bottomright' }).addTo(this.placeMap);
+
+    this.placeMarker = L.marker(center, {
+      draggable: true,
+      icon: L.divIcon({
+        className: 'place-pin',
+        html: '<span></span>',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      })
+    }).addTo(this.placeMap);
+    this.placeCircle = L.circle(center, {
+      radius: this.radiusMeters(),
+      color: '#f0c987',
+      fillColor: '#f0c987',
+      fillOpacity: 0.08,
+      opacity: 0.45,
+      weight: 1
+    }).addTo(this.placeMap);
+
+    this.placeMap.on('click', (event) => this.setSelectedPlace(event.latlng.lat, event.latlng.lng, 'Pinned place'));
+    this.placeMarker.on('dragend', () => {
+      const position = this.placeMarker?.getLatLng();
+      if (position) {
+        this.setSelectedPlace(position.lat, position.lng, 'Pinned place');
+      }
+    });
+  }
+
+  private setSelectedPlace(latitude: number, longitude: number, label: string, zoom?: number): void {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return;
+    }
+
+    const position: L.LatLngExpression = [latitude, longitude];
+    this.latitude.set(latitude.toFixed(6));
+    this.longitude.set(longitude.toFixed(6));
+    this.placeLabel.set(label);
+    this.ensurePlaceMap();
+    this.placeMarker?.setLatLng(position);
+    this.placeCircle?.setLatLng(position);
+    this.placeMap?.setView(position, zoom ?? this.placeMap.getZoom(), { animate: !this.reducedMotion() });
+  }
+
+  private syncPlaceCircle(): void {
+    const latitude = Number(this.latitude());
+    const longitude = Number(this.longitude());
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      return;
+    }
+
+    this.placeCircle?.setLatLng([latitude, longitude]);
+    this.placeCircle?.setRadius(this.radiusMeters());
   }
 
   private playPageEntryFlow(): void {

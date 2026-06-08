@@ -92,15 +92,44 @@
             @if (kind() === 'location') {
               <div class="place-grid">
                 <p class="place-hint">
-                  Save a place, then keep location on. Solarray will notify you once when you enter the radius.
+                  Search an address, use your current location, or tap the map to drop the reminder pin.
                 </p>
                 <label class="field">
-                  <span>Place</span>
+                  <span>Find place</span>
+                  <input
+                    name="placeSearch"
+                    [ngModel]="placeSearch()"
+                    (ngModelChange)="placeSearch.set($event)"
+                    (keydown.enter)="$event.preventDefault(); searchPlaces()"
+                    placeholder="Search address or place"
+                    autocomplete="off"
+                  >
+                </label>
+                <button class="quiet-button place-search-button" type="button" (click)="searchPlaces()">
+                  <i class="pi pi-search"></i>
+                  {{ placeSearchLoading() ? 'Searching' : 'Search' }}
+                </button>
+                @if (placeResults().length) {
+                  <div class="place-results">
+                    @for (result of placeResults(); track result.display_name) {
+                      <button type="button" (click)="choosePlace(result)">
+                        <i class="pi pi-map-marker"></i>
+                        <span>{{ result.display_name }}</span>
+                      </button>
+                    }
+                  </div>
+                }
+                @if (placeSearchError()) {
+                  <p class="location-error">{{ placeSearchError() }}</p>
+                }
+                <div #placeMap class="place-map" aria-label="Location picker map"></div>
+                <label class="field place-label-field">
+                  <span>Selected place</span>
                   <input name="placeLabel" [ngModel]="placeLabel()" (ngModelChange)="placeLabel.set($event)" placeholder="Gym, office, shop">
                 </label>
                 <label class="field">
                   <span>Radius</span>
-                  <input name="radius" type="number" min="50" step="50" [ngModel]="radiusMeters()" (ngModelChange)="radiusMeters.set(+$event)">
+                  <input name="radius" type="number" min="50" step="50" [ngModel]="radiusMeters()" (ngModelChange)="setRadius(+$event)">
                 </label>
                 <label class="field">
                   <span>Latitude</span>
