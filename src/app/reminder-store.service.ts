@@ -61,8 +61,12 @@ export class ReminderStore {
       return;
     }
 
-    this.remindersSignal.update((reminders) => [reminder, ...reminders]);
-    void setDoc(doc(this.collectionFor(user.uid), reminder.id), reminder)
+    this.remindersSignal.update((reminders) =>
+      reminders.some((candidate) => candidate.id === reminder.id)
+        ? reminders.map((candidate) => (candidate.id === reminder.id ? reminder : candidate))
+        : [reminder, ...reminders]
+    );
+    void setDoc(doc(this.collectionFor(user.uid), reminder.id), toFirestoreReminder(reminder))
       .then(() => {
         this.error.set('');
       })
@@ -123,6 +127,24 @@ export class ReminderStore {
   private collectionFor(uid: string) {
     return collection(this.db, 'users', uid, 'reminders');
   }
+}
+
+function toFirestoreReminder(reminder: Reminder): Record<string, unknown> {
+  const data: Record<string, unknown> = {
+    id: reminder.id,
+    title: reminder.title,
+    notes: reminder.notes,
+    kind: reminder.kind,
+    dueAt: reminder.dueAt,
+    completed: reminder.completed,
+    createdAt: reminder.createdAt
+  };
+
+  if (reminder.location) {
+    data['location'] = reminder.location;
+  }
+
+  return data;
 }
 
 function toReminder(snapshot: QueryDocumentSnapshot<DocumentData>): Reminder {

@@ -85,6 +85,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly latitude = signal('');
   readonly longitude = signal('');
   readonly radiusMeters = signal(250);
+  readonly editingId = signal<string | null>(null);
   readonly completingId = signal<string | null>(null);
   readonly reducedMotion = signal(prefersReducedMotion());
   readonly useNativeScrollTimeline = supportsScrollTimeline();
@@ -163,19 +164,22 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
+    const editingReminder = this.editingId()
+      ? this.store.reminders().find((candidate) => candidate.id === this.editingId())
+      : undefined;
     const reminderTitle = this.title().trim();
     const latitude = Number(this.latitude());
     const longitude = Number(this.longitude());
     const hasLocation = this.kind() === 'location' && Number.isFinite(latitude) && Number.isFinite(longitude);
 
     const reminder: Reminder = {
-      id: crypto.randomUUID(),
+      id: editingReminder?.id ?? crypto.randomUUID(),
       title: reminderTitle,
       notes: this.notes().trim(),
       kind: this.kind(),
       dueAt: new Date(this.dueAt()).toISOString(),
-      completed: false,
-      createdAt: new Date().toISOString(),
+      completed: editingReminder?.completed ?? false,
+      createdAt: editingReminder?.createdAt ?? new Date().toISOString(),
       location: hasLocation
         ? {
             label: this.placeLabel().trim() || 'Saved place',
@@ -189,16 +193,12 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.playCaptureFlow();
     this.store.add(reminder);
 
-    this.title.set('');
-    this.notes.set('');
-    this.placeLabel.set('');
-    this.latitude.set('');
-    this.longitude.set('');
-    this.radiusMeters.set(250);
-    this.kind.set('todo');
+    this.resetCaptureForm();
     this.closeDetailsAfterCapture();
-    this.playTaskEntryFlow(reminder.id);
-    void this.notifications.showLocal('Reminder saved', reminderTitle || 'Your reminder is ready.');
+    if (!editingReminder) {
+      this.playTaskEntryFlow(reminder.id);
+    }
+    void this.notifications.showLocal(editingReminder ? 'Reminder updated' : 'Reminder saved', reminderTitle || 'Your reminder is ready.');
   }
 
   toggleDetails(): void {
@@ -234,6 +234,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   deleteReminder(id: string): void {
+    if (this.editingId() === id) {
+      this.cancelEdit();
+    }
+
     if (this.reducedMotion()) {
       void this.store.remove(id);
       this.playProgressCounterFlow();
@@ -242,6 +246,41 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     this.finishTaskTimeline(id);
     this.playTaskDeletionFlow(id);
+  }
+
+  editReminder(id: string): void {
+    const reminder = this.store.reminders().find((candidate) => candidate.id === id);
+    if (!reminder) {
+      return;
+    }
+
+    this.editingId.set(reminder.id);
+    this.title.set(reminder.title);
+    this.notes.set(reminder.notes);
+    this.kind.set(reminder.kind);
+    this.dueAt.set(toLocalInputValue(new Date(reminder.dueAt)));
+    this.placeLabel.set(reminder.location?.label ?? '');
+    this.placeSearch.set(reminder.location?.label ?? '');
+    this.latitude.set(reminder.location ? String(reminder.location.latitude) : '');
+    this.longitude.set(reminder.location ? String(reminder.location.longitude) : '');
+    this.radiusMeters.set(reminder.location?.radiusMeters ?? 250);
+    this.placeResults.set([]);
+    this.placeSearchError.set('');
+
+    if (!this.detailsOpen()) {
+      this.openDetailsFlow();
+    }
+
+    window.requestAnimationFrame(() => {
+      this.quickCapture?.nativeElement.focus();
+      if (reminder.location) {
+        this.setSelectedPlace(reminder.location.latitude, reminder.location.longitude, reminder.location.label, 16);
+      }
+    });
+  }
+
+  cancelEdit(): void {
+    this.resetCaptureForm();
   }
 
   async signOut(): Promise<void> {
@@ -348,6 +387,20 @@ export class Dashboard implements AfterViewInit, OnDestroy {
         { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 }
       );
     });
+  }
+
+  private resetCaptureForm(): void {
+    this.editingId.set(null);
+    this.title.set('');
+    this.notes.set('');
+    this.placeLabel.set('');
+    this.placeSearch.set('');
+    this.placeResults.set([]);
+    this.placeSearchError.set('');
+    this.latitude.set('');
+    this.longitude.set('');
+    this.radiusMeters.set(250);
+    this.kind.set('todo');
   }
 
   private ensurePlaceMap(): void {

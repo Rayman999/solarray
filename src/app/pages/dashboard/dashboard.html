@@ -31,7 +31,7 @@
 
       <form class="capture-form" (ngSubmit)="addReminder()">
         <label class="capture-label" for="quick-capture">
-          <span id="capture-title">One thing to remember</span>
+          <span id="capture-title">{{ editingId() ? 'Editing reminder' : 'One thing to remember' }}</span>
         </label>
 
         <div class="capture-row">
@@ -46,11 +46,18 @@
             enterkeyhint="done"
             required
           >
-          <button #addButton class="add-button" type="submit" aria-label="Add reminder">
+          <button #addButton class="add-button" type="submit" [attr.aria-label]="editingId() ? 'Save reminder' : 'Add reminder'">
             <span class="capture-burst" aria-hidden="true"></span>
-            <i class="pi pi-plus"></i>
+            <i class="pi" [ngClass]="editingId() ? 'pi-check' : 'pi-plus'"></i>
           </button>
         </div>
+
+        @if (editingId()) {
+          <button class="quiet-button cancel-edit-button" type="button" (click)="cancelEdit()">
+            <i class="pi pi-times"></i>
+            Cancel edit
+          </button>
+        }
 
         <button class="details-toggle" type="button" (click)="toggleDetails()">
           <span>{{ detailsOpen() ? 'Less' : 'Time, place, or type' }}</span>
@@ -177,6 +184,9 @@
               }
             </p>
           </div>
+          <button class="ghost-icon edit-icon" type="button" (click)="editReminder(next.id)" aria-label="Edit next reminder">
+            <i class="pi pi-pencil"></i>
+          </button>
         </article>
       } @else {
         <div class="empty-next">
@@ -206,6 +216,9 @@
                 <h3>{{ reminder.title }}</h3>
                 <p>{{ reminder.dueAt | date:'HH:mm' }}</p>
               </div>
+              <button class="ghost-icon edit-icon" type="button" (click)="editReminder(reminder.id)" aria-label="Edit reminder">
+                <i class="pi pi-pencil"></i>
+              </button>
               <button class="ghost-icon" type="button" (click)="deleteReminder(reminder.id)" aria-label="Delete reminder">
                 <i class="pi pi-trash"></i>
               </button>

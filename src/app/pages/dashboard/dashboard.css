@@ -191,6 +191,10 @@ h1 {
   gap: 0.45rem;
 }
 
+.cancel-edit-button {
+  justify-content: center;
+}
+
 .capture-row input,
 .field input,
 .field textarea {
@@ -480,7 +484,7 @@ h1 {
   /* Psychology: single-action bias. The check control is larger than secondary actions because completion is the desired next behavior. */
   position: relative;
   display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr);
+  grid-template-columns: 2.75rem minmax(0, 1fr) 2rem;
   align-items: center;
   gap: 0.78rem;
   margin-top: 0.8rem;
@@ -608,7 +612,7 @@ h1 {
 .later-list article {
   /* Psychology: Zeigarnik effect, softened. Later tasks remain visible enough to trust, but visually quieter than the active open loop. */
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem;
+  grid-template-columns: 2rem minmax(0, 1fr) 2rem 2rem;
   align-items: center;
   gap: 0.55rem;
   border: 1px solid var(--line);
@@ -690,7 +694,13 @@ h1 {
   transform: translateY(-1px);
 }
 
-.ghost-icon:hover {
+.edit-icon:hover {
+  border-color: rgba(240, 201, 135, 0.36);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.ghost-icon:not(.edit-icon):hover {
   border-color: rgba(217, 148, 148, 0.4);
   color: var(--rose);
   transform: translateY(-1px);
