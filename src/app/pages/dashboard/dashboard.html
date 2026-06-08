@@ -59,10 +59,6 @@
           </button>
         }
 
-        @if (store.error()) {
-          <p class="sync-error">{{ store.error() }}</p>
-        }
-
         <button class="details-toggle" type="button" (click)="toggleDetails()">
           <span>{{ detailsOpen() ? 'Less' : 'Time, place, or type' }}</span>
           <i class="pi" [ngClass]="detailsOpen() ? 'pi-angle-up' : 'pi-angle-down'"></i>
