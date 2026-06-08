@@ -70,7 +70,8 @@ export class ReminderStore {
       .then(() => {
         this.error.set('');
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Solarray reminder save failed', error);
         this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== reminder.id));
         this.error.set('Could not save that reminder. Try again in a moment.');
       });
@@ -94,7 +95,8 @@ export class ReminderStore {
       .then(() => {
         this.error.set('');
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Solarray reminder update failed', error);
         this.remindersSignal.update((reminders) =>
           reminders.map((candidate) => (candidate.id === id ? reminder : candidate))
         );
@@ -118,7 +120,8 @@ export class ReminderStore {
       .then(() => {
       this.error.set('');
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Solarray reminder delete failed', error);
         this.remindersSignal.set(previous);
         this.error.set('Could not delete that reminder. Try again in a moment.');
       });
