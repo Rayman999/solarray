@@ -6,8 +6,8 @@ Angular 22 mobile-first starter for todos, reminders, and location-aware prompts
 
 - Angular `^22.0.0`
 - Tailwind CSS `^4.3.0`
-- PrimeIcons are included for app icons. PrimeNG components should be added when the Angular 22-compatible PrimeNG v22 release is available.
-- Firebase-ready setup for free Hosting, Firestore, Auth, and Cloud Messaging.
+- PrimeIcons and PrimeNG are included for app icons/components.
+- Firebase-ready setup for Auth, Firestore, local notifications, and future Cloud Messaging.
 
 ## Requirements
 
@@ -31,16 +31,33 @@ npm install primeng @primeuix/themes
 ## Firebase Setup
 
 1. Create a Firebase project on the Spark/free plan.
-2. Enable Hosting, Firestore, Authentication, and Cloud Messaging.
+2. Enable Firestore, Authentication, and Cloud Messaging.
 3. Add the web app config to `src/environments/environment.ts`.
 4. Generate a Cloud Messaging web push certificate and add the VAPID key to the same file.
-5. Build and deploy:
+5. Build locally when needed:
 
 ```bash
 npm run build
-npx firebase-tools login
-npx firebase-tools init
-npm run firebase:deploy
+```
+
+## Automatic Server Deploys
+
+Solarray is hosted on the VPS through Portainer/Traefik using `docker-compose.yml`.
+The GitHub Actions workflow builds the Docker image and pushes it to GitHub
+Container Registry on every push to `main`.
+
+To make deploys automatic:
+
+1. In Portainer, open the `solarray` stack and create/copy its update webhook URL.
+2. In GitHub, open the repo settings and add an Actions secret named
+   `PORTAINER_WEBHOOK_URL`.
+3. Paste the Portainer webhook URL as the secret value.
+4. Push to `main`.
+
+After that, the flow is:
+
+```text
+push to main -> GitHub builds image -> GHCR gets latest -> Portainer redeploys -> test on phone
 ```
 
 ## Important Mobile Note

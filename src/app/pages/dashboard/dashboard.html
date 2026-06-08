@@ -12,10 +12,15 @@
         <h1>{{ greeting() }}</h1>
       </div>
 
-      <button class="quiet-button sign-out-button" type="button" (click)="signOut()">
-        <span>Sign out</span>
-        <i class="pi pi-sign-out"></i>
-      </button>
+      <div class="header-actions">
+        <button class="quiet-button icon-button" type="button" (click)="refreshApp()" aria-label="Refresh app">
+          <i class="pi pi-refresh"></i>
+        </button>
+        <button class="quiet-button sign-out-button" type="button" (click)="signOut()">
+          <span>Sign out</span>
+          <i class="pi pi-sign-out"></i>
+        </button>
+      </div>
     </header>
 
     <!-- Psychology: Fogg/Tiny Habits. The smallest useful behavior is "type one thing, tap plus"; details stay optional. -->
@@ -86,6 +91,9 @@
 
             @if (kind() === 'location') {
               <div class="place-grid">
+                <p class="place-hint">
+                  Save a place, then keep location on. Solarray will notify you once when you enter the radius.
+                </p>
                 <label class="field">
                   <span>Place</span>
                   <input name="placeLabel" [ngModel]="placeLabel()" (ngModelChange)="placeLabel.set($event)" placeholder="Gym, office, shop">
@@ -106,6 +114,9 @@
                   <i class="pi pi-crosshairs"></i>
                   Use current location
                 </button>
+                @if (location.error()) {
+                  <p class="location-error">{{ location.error() }}</p>
+                }
               </div>
             }
           </div>
@@ -185,6 +196,10 @@
         <i class="pi pi-bell"></i>
         <span>{{ notifications.permission() }}</span>
       </button>
+      <div>
+        <strong>{{ location.nearbyReminders().length }}</strong>
+        <span>nearby</span>
+      </div>
       <div>
         <strong>{{ displayedCompletionRate() }}%</strong>
         <span>done</span>

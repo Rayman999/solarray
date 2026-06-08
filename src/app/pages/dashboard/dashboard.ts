@@ -7,7 +7,7 @@ import { gsap } from 'gsap';
 import { AuthService } from '../../auth.service';
 import { LocationReminderService } from '../../location-reminder.service';
 import { NotificationService } from '../../notification.service';
-import { ReminderKind } from '../../reminder.model';
+import { Reminder, ReminderKind } from '../../reminder.model';
 import { ReminderStore } from '../../reminder-store.service';
 
 const MOTION = {
@@ -143,12 +143,14 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const longitude = Number(this.longitude());
     const hasLocation = this.kind() === 'location' && Number.isFinite(latitude) && Number.isFinite(longitude);
 
-    this.playCaptureFlow();
-    const createdId = this.store.add({
+    const reminder: Reminder = {
+      id: crypto.randomUUID(),
       title: reminderTitle,
       notes: this.notes().trim(),
       kind: this.kind(),
       dueAt: new Date(this.dueAt()).toISOString(),
+      completed: false,
+      createdAt: new Date().toISOString(),
       location: hasLocation
         ? {
             label: this.placeLabel().trim() || 'Saved place',
@@ -157,7 +159,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
             radiusMeters: this.radiusMeters()
           }
         : undefined
-    });
+    };
+
+    this.playCaptureFlow();
+    this.store.add(reminder);
 
     this.title.set('');
     this.notes.set('');
@@ -167,11 +172,8 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.radiusMeters.set(250);
     this.kind.set('todo');
     this.closeDetailsAfterCapture();
-
-    if (createdId) {
-      this.playTaskEntryFlow(createdId);
-      void this.notifications.showLocal('Reminder saved', reminderTitle || 'Your reminder is ready.');
-    }
+    this.playTaskEntryFlow(reminder.id);
+    void this.notifications.showLocal('Reminder saved', reminderTitle || 'Your reminder is ready.');
   }
 
   toggleDetails(): void {
@@ -220,8 +222,25 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     await this.router.navigateByUrl('/login');
   }
 
-  toggleLocationWatch(): void {
-    this.location.isWatching() ? this.location.stop() : this.location.start();
+  async refreshApp(): Promise<void> {
+    // Psychology: trust repair. Refresh gives the user a direct recovery action when live data or cached PWA updates feel stale.
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration();
+      await registration?.update();
+    }
+
+    window.location.reload();
+  }
+
+  async toggleLocationWatch(): Promise<void> {
+    if (this.location.isWatching()) {
+      this.location.stop();
+      this.playStatusSignalFlow('.signal-card .pi-map-marker, .signal-card .pi-stop-circle');
+      return;
+    }
+
+    await this.notifications.requestPermission();
+    this.location.start();
     this.playStatusSignalFlow('.signal-card .pi-map-marker, .signal-card .pi-stop-circle');
   }
 
@@ -231,8 +250,8 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.playStatusSignalFlow('.signal-card .pi-bell');
   }
 
-  useCurrentLocation(): void {
-    const position = this.location.currentPosition();
+  async useCurrentLocation(): Promise<void> {
+    const position = this.location.currentPosition() ?? (await this.readCurrentPosition().catch(() => null));
     if (!position) {
       return;
     }
@@ -241,6 +260,20 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.longitude.set(position.longitude.toFixed(6));
     this.placeLabel.set('Current location');
     this.kind.set('location');
+  }
+
+  private readCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
+    if (!('geolocation' in navigator)) {
+      return Promise.reject(new Error('Location is not available on this device.'));
+    }
+
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
+        reject,
+        { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 }
+      );
+    });
   }
 
   private playPageEntryFlow(): void {

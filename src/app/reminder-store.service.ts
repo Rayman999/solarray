@@ -54,32 +54,22 @@ export class ReminderStore {
     });
   }
 
-  add(reminder: Omit<Reminder, 'id' | 'createdAt' | 'completed'>): string | null {
+  add(reminder: Reminder): void {
     const user = this.auth.user();
     if (!user) {
       this.error.set('Sign in before adding reminders.');
-      return null;
+      return;
     }
 
-    const id = crypto.randomUUID();
-    const nextReminder: Reminder = {
-      ...reminder,
-      id,
-      completed: false,
-      createdAt: new Date().toISOString()
-    };
-
-    this.remindersSignal.update((reminders) => [nextReminder, ...reminders]);
-    void setDoc(doc(this.collectionFor(user.uid), id), nextReminder)
+    this.remindersSignal.update((reminders) => [reminder, ...reminders]);
+    void setDoc(doc(this.collectionFor(user.uid), reminder.id), reminder)
       .then(() => {
         this.error.set('');
       })
       .catch(() => {
-        this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== id));
+        this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== reminder.id));
         this.error.set('Could not save that reminder. Try again in a moment.');
       });
-
-    return id;
   }
 
   toggle(id: string): Reminder | null {

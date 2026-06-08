@@ -13,6 +13,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PORTAINER_WEBHOOK_URL: ${{ secrets.PORTAINER_WEBHOOK_URL }}
 
     steps:
       - name: Check out repository
@@ -36,3 +38,7 @@ jobs:
           tags: |
             ghcr.io/rayman999/solarray:latest
             ghcr.io/rayman999/solarray:${{ github.sha }}
+
+      - name: Trigger Portainer redeploy
+        if: ${{ env.PORTAINER_WEBHOOK_URL != '' }}
+        run: curl -fsS -X POST "$PORTAINER_WEBHOOK_URL"
