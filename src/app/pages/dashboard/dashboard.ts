@@ -155,6 +155,9 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       { label: 'Store error', value: this.store.error() || 'none' },
       { label: 'Status', value: this.saveStatus() || 'none' },
       { label: 'Notifications', value: this.notifications.permission() },
+      { label: 'Notify status', value: this.notifications.status() || 'none' },
+      { label: 'Notify error', value: this.notifications.error() || 'none' },
+      { label: 'Installed PWA', value: isStandaloneApp() ? 'yes' : 'no' },
       { label: 'Location watch', value: this.location.isWatching() ? 'on' : 'off' },
       { label: 'Location error', value: this.location.error() || 'none' },
       { label: 'Runtime error', value: this.lastRuntimeError() || 'none' },
@@ -409,8 +412,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   async requestNotifications(): Promise<void> {
-    await this.notifications.requestPermission();
-    await this.notifications.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
+    const granted = await this.notifications.requestPermission();
+    if (granted) {
+      await this.notifications.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
+    }
     this.playStatusSignalFlow('.signal-card .pi-bell');
   }
 
@@ -938,6 +943,13 @@ function toLocalInputValue(date: Date): string {
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function isStandaloneApp(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
+  );
 }
 
 function supportsScrollTimeline(): boolean {
