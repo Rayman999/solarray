@@ -14,8 +14,9 @@
       </button>
     </header>
 
-    @if (activeModule() !== 'settings') {
-      <section class="capture-panel" aria-labelledby="capture-title" data-entry-card>
+    <section #moduleContent class="module-content">
+      @if (activeModule() !== 'settings') {
+        <section class="capture-panel" aria-labelledby="capture-title" data-entry-card>
         <form class="capture-form" (ngSubmit)="addReminder()">
           <label id="capture-title" class="capture-title" for="quick-capture">{{ activeModule() === 'reminders' ? 'Place reminder' : 'Add task' }}</label>
 
@@ -136,11 +137,11 @@
             </div>
           }
         </form>
-      </section>
-    }
+        </section>
+      }
 
-    @if (activeModule() === 'tasks') {
-      <section class="next-card task-panel" aria-live="polite" data-entry-card>
+      @if (activeModule() === 'tasks') {
+        <section class="next-card task-panel" aria-live="polite" data-entry-card>
         <div class="panel-heading">
           <p>Tasks</p>
           <span>{{ openTaskReminders().length }} open</span>
@@ -148,9 +149,9 @@
 
         @if (nextReminder(); as next) {
           <article class="next-item" [class.completing]="completingId() === next.id" data-motion-item [attr.data-reminder-id]="next.id">
-            <button class="big-check" type="button" (click)="completeReminder(next.id)" aria-label="Mark next task complete">
+            <button class="big-check" type="button" (click)="completeReminder(next.id)" aria-label="Complete task">
               <span class="check-ripple" aria-hidden="true"></span>
-              <i class="pi pi-check"></i>
+              <i class="pi pi-circle"></i>
             </button>
             <div class="task-copy">
               <h3>{{ next.title }}</h3>
@@ -190,11 +191,11 @@
             <p>Add one task and move on.</p>
           </div>
         }
-      </section>
-    }
+        </section>
+      }
 
-    @if (activeModule() === 'reminders') {
-      <section class="reminder-list-card task-panel" data-entry-card>
+      @if (activeModule() === 'reminders') {
+        <section class="reminder-list-card task-panel" data-entry-card>
         <div class="panel-heading">
           <p>Place reminders</p>
           <span>{{ locationQueue().length }}</span>
@@ -228,11 +229,11 @@
             <p>Add one when location matters.</p>
           </div>
         }
-      </section>
-    }
+        </section>
+      }
 
-    @if (activeModule() === 'settings') {
-      <section class="settings-grid">
+      @if (activeModule() === 'settings') {
+        <section class="settings-grid">
         <section class="phone-mode-card" aria-label="Phone mode" data-entry-card>
           <div class="panel-heading">
             <p>Phone mode</p>
@@ -272,8 +273,9 @@
             </button>
           </div>
         </section>
-      </section>
-    }
+        </section>
+      }
+    </section>
   </section>
 
   <nav class="bottom-nav" aria-label="Solarray modules" data-entry-card>

@@ -21,6 +21,9 @@ const MOTION = {
   laterTaskEntryDuration: 0.2,
   laterTaskEntryScale: 0.97,
   laterRowSettleDuration: 0.16,
+  promotedTaskDuration: 0.46,
+  moduleExitDuration: 0.18,
+  moduleEnterDuration: 0.34,
   nextPulseDuration: 0.3,
   checkFillDuration: 0.15,
   checkRippleDuration: 0.3,
@@ -38,7 +41,7 @@ const MOTION = {
   spring: 'back.out(2)'
 } as const;
 
-type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | `task-${string}`;
+type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | 'module' | `task-${string}`;
 type ModuleMode = 'tasks' | 'reminders' | 'settings';
 
 interface PlaceSearchResult {
@@ -71,6 +74,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   @ViewChild('addButton') private addButton?: ElementRef<HTMLButtonElement>;
   @ViewChild('quickCapture') private quickCapture?: ElementRef<HTMLInputElement>;
   @ViewChild('detailsPanel') private detailsPanel?: ElementRef<HTMLElement>;
+  @ViewChild('moduleContent') private moduleContent?: ElementRef<HTMLElement>;
   @ViewChild('placeMap') private set placeMapRef(element: ElementRef<HTMLElement> | undefined) {
     if (!element) {
       return;
@@ -324,20 +328,44 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   selectModule(module: ModuleMode): void {
-    // Psychology: spatial memory. Modules keep related actions in one place so the user does not re-map the whole screen.
-    this.activeModule.set(module);
-
-    if (module === 'reminders') {
-      this.kind.set('location');
-      if (!this.detailsOpen()) {
-        this.openDetailsFlow();
-      }
+    if (this.activeModule() === module) {
       return;
     }
 
-    if (module === 'tasks' && this.kind() === 'location') {
-      this.kind.set('todo');
+    if (this.reducedMotion() || !this.moduleContent?.nativeElement) {
+      this.applySelectedModule(module);
+      return;
     }
+
+    const direction = moduleIndex(module) > moduleIndex(this.activeModule()) ? 1 : -1;
+    const content = this.moduleContent.nativeElement;
+    const moduleTimeline = this.replaceTimeline('module');
+
+    moduleTimeline
+      .to(content, {
+        autoAlpha: 0,
+        x: -14 * direction,
+        filter: 'blur(6px)',
+        duration: MOTION.moduleExitDuration,
+        ease: MOTION.easeInOut
+      })
+      .add(() => {
+        this.applySelectedModule(module);
+        window.requestAnimationFrame(() => {
+          gsap.fromTo(
+            content,
+            { autoAlpha: 0, x: 16 * direction, filter: 'blur(8px)' },
+            {
+              autoAlpha: 1,
+              x: 0,
+              filter: 'blur(0px)',
+              duration: MOTION.moduleEnterDuration,
+              ease: MOTION.easeOut,
+              clearProps: 'transform,opacity,visibility,filter'
+            }
+          );
+        });
+      });
   }
 
   toggleDetails(): void {
@@ -772,9 +800,13 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
 
     const isLater = this.isLaterItem(item);
+    const promotedFromRect = isLater ? undefined : this.promotedCandidateRect();
     const durationScale = isLater ? 0.8 : 1;
     const completionTimeline = this.replaceTimeline(key);
     gsap.set(title, { textDecorationLine: 'line-through', textDecorationColor: 'transparent' });
+    completionTimeline.add(() => {
+      icon.className = 'pi pi-check';
+    }, 0);
 
     if (isLater) {
       // Psychology: quiet acknowledgement. The whole row settles with a brief lift, echoing the Next Up card's breathe at a smaller scale.
@@ -809,7 +841,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       }
       this.completingId.set(null);
       this.playProgressCounterFlow();
-      this.revealReplacementTask(id);
+      this.revealReplacementTask(id, promotedFromRect);
     });
   }
 
@@ -838,7 +870,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     });
   }
 
-  private revealReplacementTask(previousId: string): void {
+  private revealReplacementTask(previousId: string, promotedFromRect?: DOMRect): void {
     if (this.reducedMotion()) {
       return;
     }
@@ -851,6 +883,39 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
       // Psychology: object permanence. When Angular reuses a task node, clear the old exit state so the next item visibly takes its place.
       gsap.killTweensOf(replacement);
+      if (promotedFromRect && !this.isLaterItem(replacement)) {
+        const nextRect = replacement.getBoundingClientRect();
+        const x = promotedFromRect.left - nextRect.left;
+        const y = promotedFromRect.top - nextRect.top;
+        const scaleX = promotedFromRect.width / Math.max(nextRect.width, 1);
+        const scaleY = promotedFromRect.height / Math.max(nextRect.height, 1);
+
+        gsap.fromTo(
+          replacement,
+          {
+            autoAlpha: 0.82,
+            x,
+            y,
+            scaleX,
+            scaleY,
+            transformOrigin: 'top left',
+            filter: 'blur(1px)'
+          },
+          {
+            autoAlpha: 1,
+            x: 0,
+            y: 0,
+            scaleX: 1,
+            scaleY: 1,
+            filter: 'blur(0px)',
+            duration: MOTION.promotedTaskDuration,
+            ease: 'power3.out',
+            clearProps: 'transform,opacity,visibility,filter,transformOrigin'
+          }
+        );
+        return;
+      }
+
       gsap.fromTo(
         replacement,
         { autoAlpha: 0, y: -8 },
@@ -983,12 +1048,16 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     return document.querySelector<HTMLElement>(`[data-reminder-id="${id}"]`);
   }
 
+  private promotedCandidateRect(): DOMRect | undefined {
+    return document.querySelector<HTMLElement>('.later-list [data-motion-item]')?.getBoundingClientRect();
+  }
+
   private nextCard(): HTMLElement | null {
     return document.querySelector<HTMLElement>('.next-card');
   }
 
   private detailsChevron(): HTMLElement | null {
-    return document.querySelector<HTMLElement>('.details-toggle i');
+    return document.querySelector<HTMLElement>('.details-toggle i:last-child');
   }
 
   private isLaterItem(item: HTMLElement): boolean {
@@ -1017,6 +1086,22 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   private finishTaskTimeline(id: string): void {
     this.finishTimeline(`task-${id}`);
   }
+
+  private applySelectedModule(module: ModuleMode): void {
+    this.activeModule.set(module);
+
+    if (module === 'reminders') {
+      this.kind.set('location');
+      if (!this.detailsOpen()) {
+        this.openDetailsFlow();
+      }
+      return;
+    }
+
+    if (module === 'tasks' && this.kind() === 'location') {
+      this.kind.set('todo');
+    }
+  }
 }
 
 function toLocalInputValue(date: Date): string {
@@ -1041,6 +1126,10 @@ function readPhoneModePreferred(): boolean {
   } catch {
     return true;
   }
+}
+
+function moduleIndex(module: ModuleMode): number {
+  return ['tasks', 'reminders', 'settings'].indexOf(module);
 }
 
 function supportsScrollTimeline(): boolean {

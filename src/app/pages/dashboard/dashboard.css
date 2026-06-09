@@ -39,6 +39,12 @@
   gap: 0.75rem;
 }
 
+.module-content {
+  display: grid;
+  gap: 0.75rem;
+  will-change: transform, opacity, filter;
+}
+
 .home-hero,
 .capture-panel,
 .task-panel,
@@ -209,6 +215,7 @@ h1 {
   display: grid;
   gap: 0.45rem;
   margin-top: 0.55rem;
+  margin-left: 0.58rem;
 }
 
 .later-list article {
@@ -235,8 +242,18 @@ h1 {
   height: 2.75rem;
   border-color: rgba(240, 201, 135, 0.42);
   border-radius: 0.72rem;
-  background: rgba(240, 201, 135, 0.08);
+  background: rgba(255, 255, 255, 0.018);
+  color: rgba(240, 201, 135, 0.78);
+}
+
+.big-check i {
+  font-size: 0.95rem;
+  transition: transform 180ms var(--ease-reward), color 180ms ease;
+}
+
+.big-check:hover i {
   color: var(--accent);
+  transform: scale(1.12);
 }
 
 .small-check,
@@ -374,6 +391,7 @@ h1 {
   backdrop-filter: blur(22px);
   padding: 0.32rem;
   transform: translateX(-50%);
+  view-transition-name: none;
 }
 
 .bottom-nav button {
@@ -479,6 +497,10 @@ h1 {
 
   .later-list article {
     grid-template-columns: 1.95rem minmax(0, 1fr) 1.85rem 1.85rem;
+  }
+
+  .later-list {
+    margin-left: 0.42rem;
   }
 }
 
