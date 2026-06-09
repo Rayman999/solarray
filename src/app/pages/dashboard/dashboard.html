@@ -13,6 +13,9 @@
       </div>
 
       <div class="header-actions">
+        <button class="quiet-button icon-button" type="button" (click)="toggleDiagnostics()" aria-label="Open live check">
+          <i class="pi pi-info-circle"></i>
+        </button>
         <button class="quiet-button icon-button" type="button" (click)="refreshApp()" aria-label="Refresh app">
           <i class="pi pi-refresh"></i>
         </button>
@@ -25,6 +28,27 @@
 
     <!-- Psychology: Fogg/Tiny Habits. The smallest useful behavior is "type one thing, tap plus"; details stay optional. -->
     <section class="capture-zone" aria-labelledby="capture-title">
+      @if (diagnosticsOpen()) {
+        <!-- Psychology: trust repair. Live diagnostics make invisible sync/auth failures concrete enough to screenshot from a phone. -->
+        <section class="diagnostic-panel" aria-label="Live check">
+          <div class="compact-heading">
+            <p>Live check</p>
+            <button class="quiet-button diagnostic-copy" type="button" (click)="copyDiagnostics()">
+              <i class="pi pi-copy"></i>
+              Copy
+            </button>
+          </div>
+          <dl>
+            @for (row of diagnosticRows(); track row.label) {
+              <div>
+                <dt>{{ row.label }}</dt>
+                <dd>{{ row.value }}</dd>
+              </div>
+            }
+          </dl>
+        </section>
+      }
+
       <div class="intent-marker">
         <span>Start here</span>
       </div>
@@ -57,6 +81,10 @@
             <i class="pi pi-times"></i>
             Cancel edit
           </button>
+        }
+
+        @if (saveStatus()) {
+          <p class="save-status" [class.error]="saveStatusTone() === 'error'">{{ saveStatus() }}</p>
         }
 
         <button class="details-toggle" type="button" (click)="toggleDetails()">

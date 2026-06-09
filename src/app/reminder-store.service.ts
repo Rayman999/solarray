@@ -27,6 +27,7 @@ export class ReminderStore {
 
   readonly reminders = this.remindersSignal.asReadonly();
   readonly error = signal('');
+  readonly syncState = signal<'idle' | 'listening' | 'synced' | 'error'>('idle');
   readonly openReminders = computed(() => this.reminders().filter((reminder) => !reminder.completed));
   readonly completedReminders = computed(() => this.reminders().filter((reminder) => reminder.completed));
   readonly locationReminders = computed(() => this.openReminders().filter((reminder) => reminder.location));
@@ -39,24 +40,33 @@ export class ReminderStore {
       this.unsubscribeReminders = undefined;
 
       if (!user) {
+        this.syncState.set('idle');
         this.remindersSignal.set([]);
         return;
       }
 
+      this.syncState.set('listening');
       const remindersQuery = query(this.collectionFor(user.uid), orderBy('createdAt', 'desc'));
       this.unsubscribeReminders = onSnapshot(
         remindersQuery,
         (snapshot) => {
           const syncedReminders = snapshot.docs.map(toReminder);
           const syncedIds = new Set(syncedReminders.map((reminder) => reminder.id));
+
+          for (const id of syncedIds) {
+            this.pendingWrites.delete(id);
+          }
+
           const pendingReminders = Array.from(this.pendingWrites.values()).filter((reminder) => !syncedIds.has(reminder.id));
 
           this.error.set('');
+          this.syncState.set('synced');
           this.remindersSignal.set([...pendingReminders, ...syncedReminders]);
         },
         (error) => {
           console.error('Solarray reminder sync failed', error);
-          this.error.set('Could not sync reminders. Check Firestore rules and your connection.');
+          this.syncState.set('error');
+          this.reportError('Could not sync reminders. Check Firestore rules and your connection.', error);
         }
       );
     });
@@ -65,7 +75,7 @@ export class ReminderStore {
   add(reminder: Reminder): boolean {
     const user = this.auth.user();
     if (!user) {
-      this.error.set('Sign in before adding reminders.');
+      this.reportError('Sign in before adding reminders.');
       return false;
     }
 
@@ -78,13 +88,12 @@ export class ReminderStore {
     void setDoc(doc(this.collectionFor(user.uid), reminder.id), toFirestoreReminder(reminder))
       .then(() => {
         this.error.set('');
-        window.setTimeout(() => this.pendingWrites.delete(reminder.id), 1_500);
       })
       .catch((error) => {
         console.error('Solarray reminder save failed', error);
         this.pendingWrites.delete(reminder.id);
         this.remindersSignal.update((reminders) => reminders.filter((candidate) => candidate.id !== reminder.id));
-        this.error.set('Could not save that reminder. Try again in a moment.');
+        this.reportError('Could not save that reminder. Try again in a moment.', error);
       });
 
     return true;
@@ -94,7 +103,7 @@ export class ReminderStore {
     const user = this.auth.user();
     const reminder = this.reminders().find((candidate) => candidate.id === id);
     if (!user || !reminder) {
-      this.error.set('Could not find that reminder.');
+      this.reportError('Could not find that reminder.');
       return null;
     }
 
@@ -113,7 +122,7 @@ export class ReminderStore {
         this.remindersSignal.update((reminders) =>
           reminders.map((candidate) => (candidate.id === id ? reminder : candidate))
         );
-        this.error.set('Could not update that reminder. Try again in a moment.');
+        this.reportError('Could not update that reminder. Try again in a moment.', error);
       });
 
     return updatedReminder;
@@ -122,7 +131,7 @@ export class ReminderStore {
   remove(id: string): void {
     const user = this.auth.user();
     if (!user) {
-      this.error.set('Sign in before deleting reminders.');
+      this.reportError('Sign in before deleting reminders.');
       return;
     }
 
@@ -136,12 +145,26 @@ export class ReminderStore {
       .catch((error) => {
         console.error('Solarray reminder delete failed', error);
         this.remindersSignal.set(previous);
-        this.error.set('Could not delete that reminder. Try again in a moment.');
+        this.reportError('Could not delete that reminder. Try again in a moment.', error);
       });
   }
 
   private collectionFor(uid: string) {
     return collection(this.db, 'users', uid, 'reminders');
+  }
+
+  private reportError(message: string, error?: unknown): void {
+    const code = (error as { code?: string } | null)?.code;
+    const messageWithCode = code ? `${message} (${code})` : message;
+    this.error.set(messageWithCode);
+    window.dispatchEvent(
+      new CustomEvent('solarray-reminder-status', {
+        detail: {
+          tone: 'error',
+          message: messageWithCode
+        }
+      })
+    );
   }
 }
 

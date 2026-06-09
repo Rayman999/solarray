@@ -46,6 +46,13 @@ interface PlaceSearchResult {
   lon: string;
 }
 
+interface ReminderStatusEvent {
+  tone: 'success' | 'error';
+  message: string;
+}
+
+const APP_VERSION = '0.1.0';
+
 @Component({
   selector: 'app-dashboard',
   imports: [CommonModule, DatePipe, FormsModule],
@@ -87,6 +94,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly radiusMeters = signal(250);
   readonly editingId = signal<string | null>(null);
   readonly completingId = signal<string | null>(null);
+  readonly saveStatus = signal('');
+  readonly saveStatusTone = signal<'success' | 'error'>('success');
+  readonly diagnosticsOpen = signal(false);
+  readonly lastRuntimeError = signal('');
   readonly reducedMotion = signal(prefersReducedMotion());
   readonly useNativeScrollTimeline = supportsScrollTimeline();
   readonly scrollProgress = signal(0);
@@ -130,6 +141,32 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly nextReminder = computed(() => this.todayReminders()[0]);
   // Psychology: cognitive load reduction. Show only a short secondary queue so the user never has to scan the full backlog on mobile.
   readonly laterReminders = computed(() => this.todayReminders().slice(1, 4));
+  readonly diagnosticRows = computed(() => {
+    const user = this.auth.user();
+
+    return [
+      { label: 'Signed in', value: user ? 'yes' : 'no' },
+      { label: 'UID', value: user?.uid ?? 'none' },
+      { label: 'Email', value: user?.email ?? 'none' },
+      { label: 'Sync', value: this.store.syncState() },
+      { label: 'Reminders', value: String(this.store.reminders().length) },
+      { label: 'Open', value: String(this.store.openReminders().length) },
+      { label: 'Next', value: this.nextReminder()?.title ?? 'none' },
+      { label: 'Store error', value: this.store.error() || 'none' },
+      { label: 'Status', value: this.saveStatus() || 'none' },
+      { label: 'Notifications', value: this.notifications.permission() },
+      { label: 'Location watch', value: this.location.isWatching() ? 'on' : 'off' },
+      { label: 'Location error', value: this.location.error() || 'none' },
+      { label: 'Runtime error', value: this.lastRuntimeError() || 'none' },
+      { label: 'URL', value: window.location.href },
+      { label: 'App version', value: APP_VERSION }
+    ];
+  });
+  readonly diagnosticText = computed(() =>
+    this.diagnosticRows()
+      .map((row) => `${row.label}: ${row.value}`)
+      .join('\n')
+  );
 
   ngAfterViewInit(): void {
     this.playPageEntryFlow();
@@ -157,6 +194,29 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   @HostListener('window:resize')
   onResize(): void {
     this.queueScrollProgressUpdate();
+  }
+
+  @HostListener('window:solarray-reminder-status', ['$event'])
+  onReminderStatus(event: Event): void {
+    const detail = (event as CustomEvent<ReminderStatusEvent>).detail;
+    if (!detail?.message) {
+      return;
+    }
+
+    this.saveStatusTone.set(detail.tone);
+    this.saveStatus.set(detail.message);
+  }
+
+  @HostListener('window:error', ['$event'])
+  onWindowError(event: ErrorEvent): void {
+    this.reportRuntimeProblem(event.message || 'A browser error happened.');
+  }
+
+  @HostListener('window:unhandledrejection', ['$event'])
+  onUnhandledRejection(event: PromiseRejectionEvent): void {
+    const reason = event.reason as { message?: string; code?: string } | string | null;
+    const message = typeof reason === 'string' ? reason : reason?.message || reason?.code || 'A background action failed.';
+    this.reportRuntimeProblem(message);
   }
 
   addReminder(): void {
@@ -192,8 +252,12 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     this.playCaptureFlow();
     if (!this.auth.user()) {
+      this.saveStatusTone.set('error');
+      this.saveStatus.set('Sign in before adding reminders.');
       return;
     }
+    this.saveStatusTone.set('success');
+    this.saveStatus.set('');
     this.store.add(reminder);
 
     this.resetCaptureForm();
@@ -201,7 +265,30 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     if (!editingReminder) {
       this.playTaskEntryFlow(reminder.id);
     }
+    this.saveStatusTone.set('success');
+    this.saveStatus.set(editingReminder ? 'Changes saved.' : 'Reminder added.');
+    window.setTimeout(() => {
+      if (this.saveStatus() === 'Changes saved.' || this.saveStatus() === 'Reminder added.') {
+        this.saveStatus.set('');
+      }
+    }, 2_000);
     void this.notifications.showLocal(editingReminder ? 'Reminder updated' : 'Reminder saved', reminderTitle || 'Your reminder is ready.');
+  }
+
+  toggleDiagnostics(): void {
+    // Psychology: trust repair. Diagnostics stay tucked away until live testing needs a screenshotable explanation.
+    this.diagnosticsOpen.update((open) => !open);
+  }
+
+  async copyDiagnostics(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.diagnosticText());
+      this.saveStatusTone.set('success');
+      this.saveStatus.set('Live check copied.');
+    } catch {
+      this.saveStatusTone.set('error');
+      this.saveStatus.set('Could not copy live check. Screenshot this panel instead.');
+    }
   }
 
   toggleDetails(): void {
@@ -300,6 +387,13 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
 
     window.location.reload();
+  }
+
+  private reportRuntimeProblem(message: string): void {
+    this.lastRuntimeError.set(message);
+    this.saveStatusTone.set('error');
+    this.saveStatus.set(`Something failed live: ${message}`);
+    this.diagnosticsOpen.set(true);
   }
 
   async toggleLocationWatch(): Promise<void> {
