@@ -3,88 +3,21 @@
     <span [style.transform]="useNativeScrollTimeline ? null : scrollProgressTransform()"></span>
   </div>
 
-  <aside class="app-sidebar" data-entry-card>
-    <div class="brand-block">
-      <p class="eyebrow brand-mark">Solarray</p>
-      <h1>{{ greeting() }}</h1>
-    </div>
-
-    <nav class="module-tabs" aria-label="Solarray modules">
-      <button type="button" [class.active]="activeModule() === 'tasks'" (click)="selectModule('tasks')">
-        <i class="pi pi-check-circle"></i>
-        <span>Tasks</span>
-        <strong>{{ openTaskReminders().length }}</strong>
-      </button>
-      <button type="button" [class.active]="activeModule() === 'reminders'" (click)="selectModule('reminders')">
-        <i class="pi pi-map-marker"></i>
-        <span>Places</span>
-        <strong>{{ locationQueue().length }}</strong>
-      </button>
-      <button type="button" [class.active]="activeModule() === 'settings'" (click)="selectModule('settings')">
-        <i class="pi pi-cog"></i>
-        <span>Settings</span>
-      </button>
-    </nav>
-
-    <div class="sidebar-summary" aria-label="Today summary">
-      <div>
-        <span>Open</span>
-        <strong>{{ openTaskReminders().length }}</strong>
-      </div>
-      <div>
-        <span>Done</span>
-        <strong>{{ displayedCompletionRate() }}%</strong>
-      </div>
-    </div>
-
-    <div class="sidebar-actions">
-      <button class="quiet-button" type="button" (click)="toggleDiagnostics()">
-        <i class="pi pi-info-circle"></i>
-        <span>Live check</span>
-      </button>
-      <button class="quiet-button" type="button" (click)="refreshApp()">
-        <i class="pi pi-refresh"></i>
-        <span>Refresh</span>
-      </button>
-      <button class="quiet-button" type="button" (click)="signOut()">
-        <i class="pi pi-sign-out"></i>
-        <span>Sign out</span>
-      </button>
-    </div>
-  </aside>
-
   <section class="workbench">
-    <header class="topbar" data-entry-card>
+    <header class="home-hero" data-entry-card>
       <div>
-        <p class="eyebrow">{{ activeModule() === 'settings' ? 'Control center' : activeModule() === 'reminders' ? 'Location reminders' : 'Task board' }}</p>
-        <h2>{{ activeModule() === 'settings' ? 'Phone and app settings' : activeModule() === 'reminders' ? 'Remember by place' : 'Today' }}</h2>
+        <p class="eyebrow brand-mark">Solarray</p>
+        <h1>{{ activeModule() === 'settings' ? 'Settings' : activeModule() === 'reminders' ? 'Places' : 'Today' }}</h1>
       </div>
-
-      <div class="topbar-actions">
-        <button class="quiet-button icon-button" type="button" (click)="toggleDiagnostics()" aria-label="Open live check">
-          <i class="pi pi-info-circle"></i>
-        </button>
-        <button class="quiet-button icon-button" type="button" (click)="refreshApp()" aria-label="Refresh app">
-          <i class="pi pi-refresh"></i>
-        </button>
-      </div>
+      <button class="quiet-button icon-button" type="button" (click)="signOut()" aria-label="Sign out">
+        <i class="pi pi-sign-out"></i>
+      </button>
     </header>
 
     @if (activeModule() !== 'settings') {
       <section class="capture-panel" aria-labelledby="capture-title" data-entry-card>
         <form class="capture-form" (ngSubmit)="addReminder()">
-          <div class="capture-heading">
-            <div>
-              <span class="intent-dot"></span>
-              <label id="capture-title" for="quick-capture">{{ captureTitle() }}</label>
-            </div>
-            @if (editingId()) {
-              <button class="quiet-button cancel-edit-button" type="button" (click)="cancelEdit()">
-                <i class="pi pi-times"></i>
-                <span>Cancel</span>
-              </button>
-            }
-          </div>
+          <label id="capture-title" class="capture-title" for="quick-capture">{{ activeModule() === 'reminders' ? 'Place reminder' : 'Add task' }}</label>
 
           <div class="capture-row">
             <input
@@ -107,14 +40,21 @@
           <div class="capture-meta">
             <button class="details-toggle" type="button" (click)="toggleDetails()">
               <i class="pi pi-sliders-h"></i>
-              <span>{{ detailsOpen() ? 'Hide details' : activeModule() === 'reminders' ? 'Add place, radius, notes' : 'Add time, type, notes' }}</span>
+              <span>{{ detailsOpen() ? 'Hide details' : 'Details' }}</span>
               <i class="pi" [ngClass]="detailsOpen() ? 'pi-angle-up' : 'pi-angle-down'"></i>
             </button>
 
-            @if (saveStatus()) {
-              <p class="save-status" [class.error]="saveStatusTone() === 'error'">{{ saveStatus() }}</p>
+            @if (editingId()) {
+              <button class="quiet-button cancel-edit-button" type="button" (click)="cancelEdit()">
+                <i class="pi pi-times"></i>
+                <span>Cancel</span>
+              </button>
             }
           </div>
+
+          @if (saveStatus()) {
+            <p class="save-status" [class.error]="saveStatusTone() === 'error'">{{ saveStatus() }}</p>
+          }
 
           @if (detailsRendered()) {
             <div #detailsPanel class="details-panel">
@@ -147,8 +87,7 @@
 
               @if (kind() === 'location') {
                 <div class="place-grid">
-                  <p class="place-hint">Search an address, use current location, or tap the map to drop the reminder pin.</p>
-                  <label class="field">
+                  <label class="field place-search-field">
                     <span>Find place</span>
                     <input
                       name="placeSearch"
@@ -185,14 +124,6 @@
                     <span>Radius</span>
                     <input name="radius" type="number" min="50" step="50" [ngModel]="radiusMeters()" (ngModelChange)="setRadius(+$event)">
                   </label>
-                  <label class="field">
-                    <span>Latitude</span>
-                    <input name="latitude" [ngModel]="latitude()" (ngModelChange)="latitude.set($event)" inputmode="decimal" placeholder="-26.2041">
-                  </label>
-                  <label class="field">
-                    <span>Longitude</span>
-                    <input name="longitude" [ngModel]="longitude()" (ngModelChange)="longitude.set($event)" inputmode="decimal" placeholder="28.0473">
-                  </label>
                   <button class="quiet-button place-button" type="button" (click)="useCurrentLocation()">
                     <i class="pi pi-crosshairs"></i>
                     <span>Use current location</span>
@@ -209,47 +140,26 @@
     }
 
     @if (activeModule() === 'tasks') {
-      <section class="task-layout">
-        <section class="next-card task-panel" aria-live="polite" data-entry-card>
-          <div class="panel-heading">
-            <div>
-              <span class="pulse-dot"></span>
-              <p>Next up</p>
-            </div>
-            <span>{{ todayReminders().length }} today</span>
-          </div>
+      <section class="next-card task-panel" aria-live="polite" data-entry-card>
+        <div class="panel-heading">
+          <p>Tasks</p>
+          <span>{{ openTaskReminders().length }} open</span>
+        </div>
 
-          @if (nextReminder(); as next) {
-            <article class="next-item" [class.completing]="completingId() === next.id" data-motion-item [attr.data-reminder-id]="next.id">
-              <button class="big-check" type="button" (click)="completeReminder(next.id)" aria-label="Mark next task complete">
-                <span class="check-ripple" aria-hidden="true"></span>
-                <i class="pi pi-check"></i>
-              </button>
-              <div class="task-copy">
-                <h3>{{ next.title }}</h3>
-                <p>{{ next.dueAt | date:'EEE, HH:mm' }}</p>
-              </div>
-              <button class="ghost-icon edit-icon" type="button" (click)="editReminder(next.id)" aria-label="Edit next task">
-                <i class="pi pi-pencil"></i>
-              </button>
-            </article>
-          } @else {
-            <div class="empty-next">
-              <i class="pi pi-moon"></i>
-              <h3>Nothing urgent.</h3>
-              <p>Add one small thing when it appears.</p>
+        @if (nextReminder(); as next) {
+          <article class="next-item" [class.completing]="completingId() === next.id" data-motion-item [attr.data-reminder-id]="next.id">
+            <button class="big-check" type="button" (click)="completeReminder(next.id)" aria-label="Mark next task complete">
+              <span class="check-ripple" aria-hidden="true"></span>
+              <i class="pi pi-check"></i>
+            </button>
+            <div class="task-copy">
+              <h3>{{ next.title }}</h3>
+              <p>{{ next.dueAt | date:'EEE, HH:mm' }}</p>
             </div>
-          }
-        </section>
-
-        <section class="later-card task-panel" data-entry-card>
-          <div class="panel-heading">
-            <div>
-              <i class="pi pi-list"></i>
-              <p>Queue</p>
-            </div>
-            <span>{{ laterReminders().length }}</span>
-          </div>
+            <button class="ghost-icon edit-icon" type="button" (click)="editReminder(next.id)" aria-label="Edit next task">
+              <i class="pi pi-pencil"></i>
+            </button>
+          </article>
 
           @if (laterReminders().length) {
             <div class="later-list">
@@ -272,102 +182,52 @@
                 </article>
               }
             </div>
-          } @else {
-            <div class="empty-list">
-              <p>No queued tasks.</p>
-            </div>
           }
-        </section>
-
-        <aside class="task-aside">
-          <section class="today-card" aria-label="Task overview" data-entry-card>
-            <div class="panel-heading">
-              <div>
-                <i class="pi pi-chart-line"></i>
-                <p>Progress</p>
-              </div>
-            </div>
-            <div class="progress-ring" [style.--progress]="displayedCompletionRate()">
-              <strong>{{ displayedCompletionRate() }}%</strong>
-              <span>done</span>
-            </div>
-            <div class="module-status-grid">
-              <div>
-                <strong>{{ openTaskReminders().length }}</strong>
-                <span>open</span>
-              </div>
-              <div>
-                <strong>{{ taskReminders().length }}</strong>
-                <span>total</span>
-              </div>
-            </div>
-          </section>
-        </aside>
+        } @else {
+          <div class="empty-next">
+            <i class="pi pi-moon"></i>
+            <h3>Nothing here.</h3>
+            <p>Add one task and move on.</p>
+          </div>
+        }
       </section>
     }
 
     @if (activeModule() === 'reminders') {
-      <section class="task-layout reminders-layout">
-        <section class="reminder-list-card task-panel" data-entry-card>
-          <div class="panel-heading">
-            <div>
-              <i class="pi pi-map-marker"></i>
-              <p>Place reminders</p>
-            </div>
-            <span>{{ locationQueue().length }}</span>
+      <section class="reminder-list-card task-panel" data-entry-card>
+        <div class="panel-heading">
+          <p>Place reminders</p>
+          <span>{{ locationQueue().length }}</span>
+        </div>
+
+        @if (locationQueue().length) {
+          <div class="later-list reminder-list">
+            @for (reminder of locationQueue(); track reminder.id) {
+              <article data-motion-item [attr.data-reminder-id]="reminder.id">
+                <button class="small-check" type="button" (click)="completeReminder(reminder.id)" aria-label="Mark reminder complete">
+                  <span class="check-ripple" aria-hidden="true"></span>
+                  <i class="pi pi-circle"></i>
+                </button>
+                <div class="task-copy">
+                  <h3>{{ reminder.title }}</h3>
+                  <p>{{ reminder.location?.label || 'Saved place' }} &middot; {{ reminder.location?.radiusMeters || radiusMeters() }}m</p>
+                </div>
+                <button class="ghost-icon edit-icon" type="button" (click)="editReminder(reminder.id)" aria-label="Edit reminder">
+                  <i class="pi pi-pencil"></i>
+                </button>
+                <button class="ghost-icon" type="button" (click)="deleteReminder(reminder.id)" aria-label="Delete reminder">
+                  <i class="pi pi-trash"></i>
+                </button>
+              </article>
+            }
           </div>
-
-          @if (locationQueue().length) {
-            <div class="later-list reminder-list">
-              @for (reminder of locationQueue(); track reminder.id) {
-                <article data-motion-item [attr.data-reminder-id]="reminder.id">
-                  <button class="small-check" type="button" (click)="completeReminder(reminder.id)" aria-label="Mark reminder complete">
-                    <span class="check-ripple" aria-hidden="true"></span>
-                    <i class="pi pi-circle"></i>
-                  </button>
-                  <div class="task-copy">
-                    <h3>{{ reminder.title }}</h3>
-                    <p>{{ reminder.location?.label || 'Saved place' }} &middot; {{ reminder.location?.radiusMeters || radiusMeters() }}m</p>
-                  </div>
-                  <button class="ghost-icon edit-icon" type="button" (click)="editReminder(reminder.id)" aria-label="Edit reminder">
-                    <i class="pi pi-pencil"></i>
-                  </button>
-                  <button class="ghost-icon" type="button" (click)="deleteReminder(reminder.id)" aria-label="Delete reminder">
-                    <i class="pi pi-trash"></i>
-                  </button>
-                </article>
-              }
-            </div>
-          } @else {
-            <div class="empty-next">
-              <i class="pi pi-map-marker"></i>
-              <h3>No place reminders.</h3>
-              <p>Add one before you head out.</p>
-            </div>
-          }
-        </section>
-
-        <aside class="task-aside">
-          <section class="today-card" aria-label="Reminder overview" data-entry-card>
-            <div class="panel-heading">
-              <div>
-                <i class="pi pi-wifi"></i>
-                <p>Nearby</p>
-              </div>
-              <span>{{ location.isWatching() ? 'Watching' : 'Paused' }}</span>
-            </div>
-            <div class="module-status-grid">
-              <div>
-                <strong>{{ location.nearbyReminders().length }}</strong>
-                <span>nearby</span>
-              </div>
-              <div>
-                <strong>{{ locationQueue().length }}</strong>
-                <span>places</span>
-              </div>
-            </div>
-          </section>
-        </aside>
+        } @else {
+          <div class="empty-next">
+            <i class="pi pi-map-marker"></i>
+            <h3>No place reminders.</h3>
+            <p>Add one when location matters.</p>
+          </div>
+        }
       </section>
     }
 
@@ -375,10 +235,7 @@
       <section class="settings-grid">
         <section class="phone-mode-card" aria-label="Phone mode" data-entry-card>
           <div class="panel-heading">
-            <div>
-              <i class="pi pi-mobile"></i>
-              <p>Phone mode</p>
-            </div>
+            <p>Phone mode</p>
             <span>{{ phoneModePreferred() ? 'Armed' : 'Off' }}</span>
           </div>
 
@@ -401,10 +258,7 @@
 
         <section class="today-card" aria-label="Account actions" data-entry-card>
           <div class="panel-heading">
-            <div>
-              <i class="pi pi-cloud"></i>
-              <p>App</p>
-            </div>
+            <p>App</p>
             <span>{{ store.syncState() }}</span>
           </div>
           <div class="module-status-grid">
@@ -418,30 +272,22 @@
             </button>
           </div>
         </section>
-
-        @if (diagnosticsOpen()) {
-          <section class="diagnostic-panel settings-panel" aria-label="Live check" data-entry-card>
-            <div class="panel-heading">
-              <div>
-                <i class="pi pi-info-circle"></i>
-                <p>Live check</p>
-              </div>
-              <button class="quiet-button diagnostic-copy" type="button" (click)="copyDiagnostics()">
-                <i class="pi pi-copy"></i>
-                <span>Copy</span>
-              </button>
-            </div>
-            <dl>
-              @for (row of diagnosticRows(); track row.label) {
-                <div>
-                  <dt>{{ row.label }}</dt>
-                  <dd>{{ row.value }}</dd>
-                </div>
-              }
-            </dl>
-          </section>
-        }
       </section>
     }
   </section>
+
+  <nav class="bottom-nav" aria-label="Solarray modules" data-entry-card>
+    <button type="button" [class.active]="activeModule() === 'tasks'" (click)="selectModule('tasks')">
+      <i class="pi pi-check-circle"></i>
+      <span>Tasks</span>
+    </button>
+    <button type="button" [class.active]="activeModule() === 'reminders'" (click)="selectModule('reminders')">
+      <i class="pi pi-map-marker"></i>
+      <span>Places</span>
+    </button>
+    <button type="button" [class.active]="activeModule() === 'settings'" (click)="selectModule('settings')">
+      <i class="pi pi-cog"></i>
+      <span>Settings</span>
+    </button>
+  </nav>
 </main>
