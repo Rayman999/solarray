@@ -47,7 +47,8 @@
 .home-card,
 .next-card,
 .later-card,
-.signal-card {
+.phone-mode-card,
+.today-card {
   /* Psychology: calm motivation. Hairline glass surfaces group decisions without adding heavy visual pressure. */
   position: relative;
   overflow: hidden;
@@ -298,7 +299,8 @@ h1 {
 .add-button,
 .details-toggle,
 .quiet-button,
-.signal-card button,
+.module-status-grid button,
+.phone-mode-action,
 .big-check,
 .small-check,
 .ghost-icon {
@@ -623,7 +625,7 @@ h1 {
 .next-item p,
 .empty-next p,
 .later-list p,
-.signal-card span {
+.module-status-grid span {
   color: var(--muted);
 }
 
@@ -731,10 +733,6 @@ h1 {
     font-size: 16px;
   }
 
-  .signal-card {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .diagnostic-panel dl div {
     grid-template-columns: 1fr;
     gap: 0.12rem;
@@ -778,16 +776,50 @@ h1 {
   transform: translateY(-1px);
 }
 
-.signal-card {
-  /* Psychology: recognition over recall. Small signal tiles replace separate settings/status panels. */
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.4rem;
-  padding: 0.5rem;
+.phone-mode-card,
+.today-card {
+  padding: 0.7rem;
 }
 
-.signal-card button,
-.signal-card div {
+.phone-mode-card {
+  /* Psychology: implementation intention. One module owns the phone permissions so the user does not hunt for scattered setup actions. */
+  display: grid;
+  gap: 0.6rem;
+}
+
+.today-card {
+  /* Psychology: recognition over recall. Passive stats live separately from controls, so the screen explains itself at a glance. */
+  display: grid;
+  gap: 0.6rem;
+}
+
+.phone-mode-action {
+  display: flex;
+  min-height: 3.1rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(240, 201, 135, 0.46);
+  border-radius: 0.78rem;
+  background: rgba(240, 201, 135, 0.1);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.phone-mode-action:hover {
+  border-color: rgba(240, 201, 135, 0.7);
+  background: rgba(240, 201, 135, 0.14);
+  transform: translateY(-1px);
+}
+
+.module-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.module-status-grid button,
+.module-status-grid div {
   display: grid;
   min-height: 2.9rem;
   place-items: center;
@@ -798,18 +830,18 @@ h1 {
   text-align: center;
 }
 
-.signal-card button:hover {
+.module-status-grid button:hover {
   border-color: rgba(240, 201, 135, 0.4);
   color: var(--accent);
 }
 
-.signal-card strong {
+.module-status-grid strong {
   color: var(--ink);
   font-size: 0.9rem;
   line-height: 1;
 }
 
-.signal-card span {
+.module-status-grid span {
   max-width: 6rem;
   overflow: hidden;
   font-size: 0.64rem;
@@ -830,7 +862,8 @@ h1 {
 
 .details-toggle:active,
 .quiet-button:active,
-.signal-card button:active,
+.module-status-grid button:active,
+.phone-mode-action:active,
 .big-check:active,
 .small-check:active,
 .ghost-icon:active,
@@ -873,7 +906,8 @@ h1 {
   .home-card,
   .next-card,
   .later-card,
-  .signal-card {
+  .phone-mode-card,
+  .today-card {
     border-radius: 0.9rem;
   }
 
@@ -900,7 +934,8 @@ h1 {
   .add-button:hover,
   .details-toggle:hover,
   .quiet-button:hover,
-  .signal-card button:hover,
+  .module-status-grid button:hover,
+  .phone-mode-action:hover,
   .big-check:hover,
   .small-check:hover,
   .ghost-icon:hover,
@@ -917,7 +952,8 @@ h1 {
   .add-button,
   .details-toggle,
   .quiet-button,
-  .signal-card button,
+  .module-status-grid button,
+  .phone-mode-action,
   .big-check,
   .small-check,
   .ghost-icon,

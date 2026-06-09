@@ -9,6 +9,8 @@ interface Coordinates {
   longitude: number;
 }
 
+const LOCATION_WATCH_KEY = 'solarray.locationWatchPreferred';
+
 @Injectable({ providedIn: 'root' })
 export class LocationReminderService {
   private readonly store = inject(ReminderStore);
@@ -20,6 +22,7 @@ export class LocationReminderService {
 
   readonly currentPosition = signal<Coordinates | null>(null);
   readonly isWatching = signal(false);
+  readonly preferredWatching = signal(readPreferredWatching());
   readonly error = signal('');
   readonly nearbyReminders = computed(() => {
     const position = this.currentPosition();
@@ -61,7 +64,7 @@ export class LocationReminderService {
     });
   }
 
-  start(): void {
+  start(remember = true): void {
     if (!('geolocation' in navigator)) {
       this.error.set('Location is not available on this device.');
       return;
@@ -69,6 +72,10 @@ export class LocationReminderService {
 
     if (this.isWatching()) {
       return;
+    }
+
+    if (remember) {
+      this.setPreferredWatching(true);
     }
 
     this.watchId = navigator.geolocation.watchPosition(
@@ -86,11 +93,21 @@ export class LocationReminderService {
     this.isWatching.set(true);
   }
 
-  stop(): void {
+  stop(remember = true): void {
     if (this.watchId !== undefined) {
       navigator.geolocation.clearWatch(this.watchId);
     }
+    this.watchId = undefined;
+    if (remember) {
+      this.setPreferredWatching(false);
+    }
     this.isWatching.set(false);
+  }
+
+  resumePreferredWatch(): void {
+    if (this.preferredWatching()) {
+      this.start(false);
+    }
   }
 
   useCurrentPosition(): Promise<Coordinates> {
@@ -157,6 +174,23 @@ export class LocationReminderService {
       this.notifiedDueIds.add(reminder.id);
       await this.notifications.showLocal(reminder.title, reminder.notes || 'This reminder is due now.');
     }
+  }
+
+  private setPreferredWatching(value: boolean): void {
+    this.preferredWatching.set(value);
+    try {
+      window.localStorage.setItem(LOCATION_WATCH_KEY, value ? '1' : '0');
+    } catch {
+      // Ignore storage failures; the active watch still works for the current session.
+    }
+  }
+}
+
+function readPreferredWatching(): boolean {
+  try {
+    return window.localStorage.getItem(LOCATION_WATCH_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 

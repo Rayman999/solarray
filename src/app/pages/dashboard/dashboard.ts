@@ -52,6 +52,7 @@ interface ReminderStatusEvent {
 }
 
 const APP_VERSION = '0.1.0';
+const PHONE_MODE_KEY = 'solarray.phoneModePreferred';
 
 @Component({
   selector: 'app-dashboard',
@@ -98,6 +99,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly saveStatusTone = signal<'success' | 'error'>('success');
   readonly diagnosticsOpen = signal(false);
   readonly lastRuntimeError = signal('');
+  readonly phoneModePreferred = signal(readPhoneModePreferred());
   readonly reducedMotion = signal(prefersReducedMotion());
   readonly useNativeScrollTimeline = supportsScrollTimeline();
   readonly scrollProgress = signal(0);
@@ -159,6 +161,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       { label: 'Notify error', value: this.notifications.error() || 'none' },
       { label: 'Installed PWA', value: isStandaloneApp() ? 'yes' : 'no' },
       { label: 'Location watch', value: this.location.isWatching() ? 'on' : 'off' },
+      { label: 'Phone mode', value: this.phoneModePreferred() ? 'armed' : 'off' },
       { label: 'Location error', value: this.location.error() || 'none' },
       { label: 'Runtime error', value: this.lastRuntimeError() || 'none' },
       { label: 'URL', value: window.location.href },
@@ -175,6 +178,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.playPageEntryFlow();
     this.playProgressCounterFlow();
     this.queueScrollProgressUpdate();
+    window.setTimeout(() => this.resumePhoneMode(), 400);
   }
 
   ngOnDestroy(): void {
@@ -377,7 +381,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   async signOut(): Promise<void> {
-    this.location.stop();
+    this.location.stop(false);
     await this.auth.logout();
     await this.router.navigateByUrl('/login');
   }
@@ -399,16 +403,34 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.diagnosticsOpen.set(true);
   }
 
+  private resumePhoneMode(): void {
+    if (!this.phoneModePreferred()) {
+      return;
+    }
+
+    this.location.resumePreferredWatch();
+  }
+
+  private setPhoneModePreferred(value: boolean): void {
+    this.phoneModePreferred.set(value);
+    try {
+      window.localStorage.setItem(PHONE_MODE_KEY, value ? '1' : '0');
+    } catch {
+      // The mode still works for the current app session if storage is unavailable.
+    }
+  }
+
   async toggleLocationWatch(): Promise<void> {
     if (this.location.isWatching()) {
       this.location.stop();
-      this.playStatusSignalFlow('.signal-card .pi-map-marker, .signal-card .pi-stop-circle');
+      this.setPhoneModePreferred(false);
+      this.playStatusSignalFlow('.phone-mode-card .pi-map-marker, .phone-mode-card .pi-stop-circle');
       return;
     }
 
     await this.notifications.requestPermission();
     this.location.start();
-    this.playStatusSignalFlow('.signal-card .pi-map-marker, .signal-card .pi-stop-circle');
+    this.playStatusSignalFlow('.phone-mode-card .pi-map-marker, .phone-mode-card .pi-stop-circle');
   }
 
   async requestNotifications(): Promise<void> {
@@ -416,7 +438,25 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     if (granted) {
       await this.notifications.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
     }
-    this.playStatusSignalFlow('.signal-card .pi-bell');
+    this.playStatusSignalFlow('.phone-mode-card .pi-bell');
+  }
+
+  async enablePhoneMode(): Promise<void> {
+    // Psychology: implementation intention. One deliberate "arm phone mode" action replaces scattered permission chores.
+    this.setPhoneModePreferred(true);
+    const granted = await this.notifications.requestPermission();
+    this.location.start();
+    this.saveStatusTone.set(granted && !this.location.error() ? 'success' : 'error');
+    this.saveStatus.set(granted ? 'Phone mode armed.' : 'Notifications still need permission.');
+    this.playStatusSignalFlow('.phone-mode-card .pi-bolt, .phone-mode-card .pi-map-marker, .phone-mode-card .pi-bell');
+  }
+
+  disablePhoneMode(): void {
+    this.setPhoneModePreferred(false);
+    this.location.stop();
+    this.saveStatusTone.set('success');
+    this.saveStatus.set('Phone mode paused.');
+    this.playStatusSignalFlow('.phone-mode-card .pi-pause-circle');
   }
 
   async useCurrentLocation(): Promise<void> {
@@ -950,6 +990,14 @@ function isStandaloneApp(): boolean {
     typeof window !== 'undefined' &&
     (window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone === true)
   );
+}
+
+function readPhoneModePreferred(): boolean {
+  try {
+    return window.localStorage.getItem(PHONE_MODE_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 function supportsScrollTimeline(): boolean {

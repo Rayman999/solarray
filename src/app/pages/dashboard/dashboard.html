@@ -256,23 +256,46 @@
       </section>
     }
 
-    <!-- Psychology: recognition over recall. Quiet signal tiles expose system state without making the user read settings screens. -->
-    <section class="signal-card" aria-label="Quiet signals" data-entry-card data-resize-card>
-      <button type="button" (click)="toggleLocationWatch()">
-        <i class="pi" [ngClass]="location.isWatching() ? 'pi-stop-circle' : 'pi-map-marker'"></i>
-        <span>{{ location.isWatching() ? 'Location on' : 'Location off' }}</span>
-      </button>
-      <button type="button" (click)="requestNotifications()">
-        <i class="pi pi-bell"></i>
-        <span>{{ notifications.permission() }}</span>
-      </button>
-      <div>
-        <strong>{{ location.nearbyReminders().length }}</strong>
-        <span>nearby</span>
+    <!-- Psychology: implementation intention. Phone mode groups the two permission actions into one memorable daily control. -->
+    <section class="phone-mode-card" aria-label="Phone mode" data-entry-card data-resize-card>
+      <div class="compact-heading">
+        <p>Phone mode</p>
+        <span>{{ phoneModePreferred() ? 'Armed' : 'Off' }}</span>
       </div>
-      <div>
-        <strong>{{ displayedCompletionRate() }}%</strong>
-        <span>done</span>
+
+      <button class="phone-mode-action" type="button" (click)="phoneModePreferred() ? disablePhoneMode() : enablePhoneMode()">
+        <i class="pi" [ngClass]="phoneModePreferred() ? 'pi-pause-circle' : 'pi-bolt'"></i>
+        <span>{{ phoneModePreferred() ? 'Pause phone mode' : 'Arm phone mode' }}</span>
+      </button>
+
+      <div class="module-status-grid">
+        <button type="button" (click)="toggleLocationWatch()">
+          <i class="pi" [ngClass]="location.isWatching() ? 'pi-stop-circle' : 'pi-map-marker'"></i>
+          <span>{{ location.isWatching() ? 'Location on' : 'Location off' }}</span>
+        </button>
+        <button type="button" (click)="requestNotifications()">
+          <i class="pi pi-bell"></i>
+          <span>{{ notifications.permission() }}</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Psychology: recognition over recall. Passive information gets its own module so controls do not compete with stats. -->
+    <section class="today-card" aria-label="Today overview" data-entry-card data-resize-card>
+      <div class="compact-heading">
+        <p>Today</p>
+        <span>{{ store.openReminders().length }}</span>
+      </div>
+
+      <div class="module-status-grid">
+        <div>
+          <strong>{{ location.nearbyReminders().length }}</strong>
+          <span>nearby</span>
+        </div>
+        <div>
+          <strong>{{ displayedCompletionRate() }}%</strong>
+          <span>done</span>
+        </div>
       </div>
     </section>
   </section>
