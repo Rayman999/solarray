@@ -2,28 +2,27 @@
   display: block;
 }
 
-.home-shell {
-  /* Psychology: thumb-zone comfort. Compact vertical rhythm keeps the primary action reachable on one-handed mobile use. */
+.app-shell {
   display: grid;
-  gap: 0.65rem;
-  width: min(100%, 72rem);
+  grid-template-columns: 17rem minmax(0, 1fr);
+  gap: 1rem;
+  width: min(100%, 82rem);
   min-height: 100dvh;
   margin-inline: auto;
   padding:
-    max(0.7rem, env(safe-area-inset-top))
-    max(0.7rem, env(safe-area-inset-right))
-    max(0.7rem, env(safe-area-inset-bottom))
-    max(0.7rem, env(safe-area-inset-left));
+    max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
   overflow-x: clip;
 }
 
 .scroll-progress {
-  /* Psychology: spatial orientation. A quiet progress rail keeps the user's place visible while scrolling. */
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 8;
+  z-index: 20;
   height: 2px;
   overflow: hidden;
   pointer-events: none;
@@ -38,89 +37,62 @@
   background: var(--accent);
 }
 
-@supports (animation-timeline: scroll()) {
-  .scroll-progress.native-timeline span {
-    transform: scaleX(0);
-  }
-}
-
-.home-card,
-.next-card,
-.later-card,
-.reminder-list-card,
+.app-sidebar,
+.topbar,
+.capture-panel,
+.task-panel,
+.today-card,
 .phone-mode-card,
-.today-card {
-  /* Psychology: calm motivation. Hairline glass surfaces group decisions without adding heavy visual pressure. */
-  position: relative;
-  overflow: hidden;
+.diagnostic-panel {
   border: 1px solid var(--line);
-  border-radius: 0.95rem;
+  border-radius: 0.9rem;
   background: var(--surface);
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.34);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.32);
   backdrop-filter: blur(20px);
 }
 
-.home-card {
-  /* Psychology: one clear starting point. The capture card is the only elevated dominant surface; all follow-up cards stay quieter. */
+.app-sidebar {
+  position: sticky;
+  top: 1rem;
+  display: grid;
+  align-self: start;
+  gap: 1rem;
+  min-height: calc(100dvh - 2rem);
+  padding: 1rem;
 }
 
-.home-card {
-  padding: 0.85rem;
+.brand-block {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(240, 201, 135, 0.14);
+  border-radius: 0.85rem;
+  background:
+    radial-gradient(circle at 92% 4%, rgba(240, 201, 135, 0.12), transparent 34%),
+    rgba(255, 255, 255, 0.025);
+  padding: 0.9rem;
 }
 
-.home-card::after {
+.brand-block::after {
   content: '';
   position: absolute;
-  top: -7.5rem;
-  right: -7rem;
-  width: 13rem;
-  height: 13rem;
+  right: -4.2rem;
+  bottom: -4.8rem;
+  width: 9rem;
+  height: 9rem;
   border: 1px solid rgba(240, 201, 135, 0.12);
   border-radius: 999px;
-  pointer-events: none;
-}
-
-.home-header,
-.capture-zone {
-  position: relative;
-  z-index: 1;
-}
-
-.home-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.header-actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 0.45rem;
-}
-
-.sign-out-button,
-.icon-button {
-  flex-shrink: 0;
-}
-
-.icon-button {
-  width: 2.45rem;
-  justify-content: center;
-  padding-inline: 0;
 }
 
 .eyebrow,
-.section-kicker p,
-.compact-heading p,
-.capture-label span,
-.field span {
+.capture-heading label,
+.field span,
+.panel-heading p,
+.sidebar-summary span {
   margin: 0;
   color: var(--muted);
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
 }
 
@@ -137,131 +109,504 @@ p {
 }
 
 h1 {
-  margin-top: 0.35rem;
+  position: relative;
+  z-index: 1;
+  margin-top: 0.45rem;
   color: var(--ink);
-  font-size: clamp(1.75rem, 10vw, 3.2rem);
+  font-size: clamp(1.9rem, 4vw, 2.8rem);
   font-weight: 600;
-  letter-spacing: -0.04em;
-  line-height: 0.95;
+  letter-spacing: 0;
+  line-height: 0.98;
 }
 
-.capture-zone {
-  margin-top: 1.25rem;
+.topbar h2 {
+  margin-top: 0.2rem;
+  color: var(--ink);
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.05;
 }
 
 .module-tabs {
-  position: relative;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.38rem;
-  margin-top: 1rem;
+  gap: 0.45rem;
 }
 
 .module-tabs button {
-  display: flex;
-  min-height: 2.45rem;
+  display: grid;
+  grid-template-columns: 1.8rem minmax(0, 1fr) auto;
+  min-height: 2.9rem;
   align-items: center;
-  justify-content: center;
-  gap: 0.32rem;
-  border: 1px solid var(--line);
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.018);
+  gap: 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.72rem;
+  background: transparent;
   color: var(--muted);
-  font: inherit;
+  padding: 0 0.72rem;
+  text-align: left;
+  transition: transform 180ms var(--ease-calm), border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.module-tabs button i {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.module-tabs button span {
+  overflow: hidden;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.module-tabs button strong {
+  min-width: 1.45rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink);
+  font-size: 0.72rem;
+  line-height: 1.45rem;
+  text-align: center;
 }
 
 .module-tabs button.active {
   border-color: rgba(240, 201, 135, 0.28);
+  background: rgba(240, 201, 135, 0.07);
   color: var(--accent);
 }
 
-.module-tabs button:active {
-  transform: scale(0.97);
+.module-tabs button.active i,
+.module-tabs button.active strong {
+  border-color: rgba(240, 201, 135, 0.34);
+  color: var(--accent);
 }
 
-.intent-marker {
-  /* Psychology: prompt clarity. A small "Start here" cue directs attention without creating another large CTA. */
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  border: 1px solid rgba(240, 201, 135, 0.2);
-  border-radius: 999px;
-  background: rgba(240, 201, 135, 0.06);
-  padding: 0.28rem 0.55rem;
-  color: var(--accent);
-  font-size: 0.68rem;
+.sidebar-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.sidebar-summary div {
+  display: grid;
+  gap: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.72rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.7rem;
+}
+
+.sidebar-summary strong {
+  color: var(--ink);
+  font-size: 1.35rem;
   font-weight: 600;
 }
 
-.intent-marker::before {
-  content: '';
-  width: 0.36rem;
-  height: 0.36rem;
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 0.2rem rgba(240, 201, 135, 0.08);
-}
-
-.capture-form {
+.sidebar-actions {
   display: grid;
-  gap: 0.6rem;
-  margin-top: 0.65rem;
+  gap: 0.45rem;
+  align-self: end;
 }
 
-.capture-label {
-  display: block;
-}
-
-.capture-label span {
-  color: var(--accent);
-}
-
-.capture-row {
-  /* Psychology: friction reduction. Input and add button are one motor unit: type, tap, done. */
+.workbench {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 2.85rem;
+  gap: 1rem;
+  align-content: start;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 5.6rem;
+  padding: 1rem 1.1rem;
+}
+
+.topbar-actions {
+  display: flex;
   gap: 0.45rem;
 }
 
-.cancel-edit-button {
+.icon-button {
+  width: 2.5rem;
   justify-content: center;
+  padding-inline: 0;
 }
 
-.save-status {
-  border: 1px solid rgba(240, 201, 135, 0.22);
-  border-radius: 0.72rem;
-  background: rgba(240, 201, 135, 0.06);
-  color: var(--accent);
-  padding: 0.62rem 0.72rem;
-  font-size: 0.82rem;
+.capture-panel {
+  padding: 1rem;
 }
 
-.save-status.error {
-  border-color: rgba(217, 148, 148, 0.32);
-  background: rgba(217, 148, 148, 0.08);
-  color: var(--rose);
-}
-
-.diagnostic-panel {
-  /* Psychology: trust repair. A compact live check turns vague failure into visible state the user can screenshot. */
+.capture-form,
+.details-panel,
+.place-grid,
+.settings-grid {
   display: grid;
-  gap: 0.65rem;
-  margin-bottom: 0.75rem;
-  border: 1px solid rgba(240, 201, 135, 0.18);
-  border-radius: 0.9rem;
-  background: rgba(255, 255, 255, 0.025);
+  gap: 0.75rem;
+}
+
+.capture-heading,
+.capture-meta,
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.capture-heading > div,
+.panel-heading > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.intent-dot,
+.pulse-dot {
+  flex: 0 0 auto;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 0.25rem rgba(240, 201, 135, 0.08);
+}
+
+.capture-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.15rem;
+  gap: 0.6rem;
+}
+
+.details-panel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+  background: rgba(255, 255, 255, 0.018);
   padding: 0.75rem;
 }
 
-.diagnostic-panel .compact-heading {
-  gap: 0.65rem;
+.type-rail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
 }
 
-.diagnostic-copy {
-  min-height: 2.1rem;
-  padding: 0 0.65rem;
-  font-size: 0.74rem;
+.place-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.place-hint,
+.location-error,
+.place-results,
+.place-map,
+.place-label-field,
+.place-button {
+  grid-column: 1 / -1;
+}
+
+.place-search-button,
+.place-button {
+  align-self: end;
+}
+
+.task-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.52fr);
+  grid-template-areas:
+    "next side"
+    "queue side";
+  gap: 1rem;
+  align-items: start;
+}
+
+.reminders-layout {
+  grid-template-areas: "queue side";
+}
+
+.next-card {
+  grid-area: next;
+}
+
+.later-card,
+.reminder-list-card {
+  grid-area: queue;
+}
+
+.task-aside {
+  grid-area: side;
+  display: grid;
+  gap: 1rem;
+}
+
+.task-panel,
+.today-card,
+.phone-mode-card,
+.diagnostic-panel {
+  padding: 1rem;
+}
+
+.panel-heading {
+  margin-bottom: 0.85rem;
+}
+
+.panel-heading i {
+  color: var(--accent);
+}
+
+.panel-heading > span {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--accent);
+  padding: 0.2rem 0.58rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.next-item {
+  display: grid;
+  grid-template-columns: 3.1rem minmax(0, 1fr) 2.3rem;
+  align-items: center;
+  gap: 0.8rem;
+  min-height: 5rem;
+  border: 1px solid rgba(240, 201, 135, 0.14);
+  border-radius: 0.82rem;
+  background:
+    linear-gradient(90deg, rgba(240, 201, 135, 0.08), rgba(255, 255, 255, 0.018) 58%),
+    rgba(255, 255, 255, 0.018);
+  padding: 0.75rem;
+}
+
+.big-check {
+  position: relative;
+  display: grid;
+  width: 3.1rem;
+  height: 3.1rem;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid rgba(240, 201, 135, 0.42);
+  border-radius: 0.8rem;
+  background: rgba(240, 201, 135, 0.08);
+  color: var(--accent);
+}
+
+.check-ripple {
+  position: absolute;
+  inset: -0.34rem;
+  border: 1px solid rgba(240, 201, 135, 0.36);
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.72);
+}
+
+.task-copy {
+  min-width: 0;
+}
+
+.task-copy h3 {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.next-item .task-copy h3 {
+  font-size: 1.18rem;
+}
+
+.task-copy p,
+.empty-next p,
+.empty-list p,
+.module-status-grid span {
+  color: var(--muted);
+}
+
+.task-copy p {
+  margin-top: 0.22rem;
+  overflow: hidden;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.later-list {
+  display: grid;
+  gap: 0.52rem;
+}
+
+.later-list article {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) 2.1rem 2.1rem;
+  align-items: center;
+  gap: 0.56rem;
+  min-height: 3.7rem;
+  border: 1px solid var(--line);
+  border-radius: 0.76rem;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.5rem;
+}
+
+.reminder-list article {
+  grid-template-columns: 2.2rem minmax(0, 1fr) 2.1rem 2.1rem;
+}
+
+.small-check,
+.ghost-icon {
+  position: relative;
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  overflow: visible;
+  border: 1px solid var(--line);
+  border-radius: 0.62rem;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+
+.next-item.completing,
+.later-list article.completing {
+  border-color: rgba(240, 201, 135, 0.2);
+  background:
+    linear-gradient(90deg, rgba(240, 201, 135, 0.09), rgba(240, 201, 135, 0.02) 62%, transparent),
+    rgba(255, 255, 255, 0.02);
+}
+
+.empty-next,
+.empty-list {
+  display: grid;
+  min-height: 8rem;
+  place-items: center;
+  border: 1px dashed var(--line);
+  border-radius: 0.82rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.empty-next i {
+  color: var(--accent);
+  font-size: 1.2rem;
+}
+
+.empty-next h3 {
+  margin-top: 0.6rem;
+  color: var(--ink);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.empty-next p,
+.empty-list p {
+  margin-top: 0.25rem;
+  font-size: 0.88rem;
+}
+
+.progress-ring {
+  display: grid;
+  width: min(11rem, 100%);
+  aspect-ratio: 1;
+  place-items: center;
+  justify-self: center;
+  margin: 0.5rem 0 1rem;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at center, rgba(5, 7, 11, 0.92) 0 58%, transparent 59%),
+    conic-gradient(var(--accent) calc(var(--progress) * 1%), rgba(255, 255, 255, 0.07) 0);
+}
+
+.progress-ring strong,
+.progress-ring span {
+  grid-area: 1 / 1;
+}
+
+.progress-ring strong {
+  transform: translateY(-0.35rem);
+  color: var(--ink);
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.progress-ring span {
+  transform: translateY(1.15rem);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.module-status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.module-status-grid button,
+.module-status-grid div {
+  display: grid;
+  min-height: 3.3rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0.72rem;
+  background: rgba(255, 255, 255, 0.018);
+  color: var(--muted);
+  text-align: center;
+}
+
+.module-status-grid button {
+  cursor: pointer;
+}
+
+.module-status-grid strong {
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+.module-status-grid span {
+  max-width: 8rem;
+  overflow: hidden;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+}
+
+.phone-mode-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.phone-mode-action {
+  display: flex;
+  min-height: 3.25rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 1px solid rgba(240, 201, 135, 0.44);
+  border-radius: 0.78rem;
+  background: rgba(240, 201, 135, 0.1);
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.diagnostic-panel {
+  grid-column: 1 / -1;
 }
 
 .diagnostic-panel dl {
@@ -272,21 +617,21 @@ h1 {
 
 .diagnostic-panel dl div {
   display: grid;
-  grid-template-columns: minmax(5.4rem, 0.34fr) minmax(0, 1fr);
-  gap: 0.55rem;
+  grid-template-columns: minmax(7rem, 0.28fr) minmax(0, 1fr);
+  gap: 0.75rem;
   align-items: baseline;
 }
 
 .diagnostic-panel dt,
 .diagnostic-panel dd {
   margin: 0;
-  font-size: 0.72rem;
+  font-size: 0.74rem;
   line-height: 1.35;
 }
 
 .diagnostic-panel dt {
   color: var(--muted);
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
 }
 
@@ -295,592 +640,39 @@ h1 {
   color: var(--ink);
 }
 
-.capture-row input,
-.field input,
-.field textarea {
-  width: 100%;
-  border: 1px solid var(--line);
-  border-radius: 0.95rem;
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--ink);
-  /* Psychology: microinteraction feedback. Focus glow answers "I can type here" without adding another instruction. */
-  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+.diagnostic-copy {
+  min-height: 2.1rem;
+  padding: 0 0.65rem;
+  font-size: 0.76rem;
 }
 
-.capture-row input {
-  min-height: 2.85rem;
-  padding: 0 0.85rem;
-  font-size: 0.94rem;
-}
-
-.capture-row input::placeholder,
-.field input::placeholder,
-.field textarea::placeholder {
-  color: rgba(130, 141, 155, 0.6);
-}
-
-.capture-row input:focus,
-.field input:focus,
-.field textarea:focus {
-  border-color: rgba(240, 201, 135, 0.45);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 3px rgba(240, 201, 135, 0.1);
-  outline: none;
-}
-
-.add-button,
-.details-toggle,
-.quiet-button,
-.module-status-grid button,
-.phone-mode-action,
-.big-check,
-.small-check,
-.ghost-icon {
-  transition: transform 180ms var(--ease-calm), border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow 220ms ease, color var(--motion-fast) ease, filter var(--motion-fast) ease;
-}
-
-.add-button {
-  position: relative;
-  display: grid;
-  width: 2.85rem;
-  height: 2.85rem;
-  place-items: center;
-  overflow: visible;
-  border: 1px solid rgba(240, 201, 135, 0.72);
-  border-radius: 0.82rem;
-  background: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: var(--accent-shadow);
-}
-
-.add-button i {
-  position: relative;
-  z-index: 1;
-}
-
-.capture-burst {
-  /* Psychology: immediate feedback. The burst lives on the action origin, making capture feel acknowledged without visual noise. */
-  position: absolute;
-  inset: -0.3rem;
-  border: 1px solid rgba(240, 201, 135, 0.34);
-  border-radius: inherit;
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.35);
-}
-
-.add-button:hover {
-  background: color-mix(in srgb, var(--accent) 88%, white);
-  box-shadow: var(--accent-shadow-hover);
-  transform: translateY(-1px);
-}
-
-.details-toggle,
-.quiet-button {
-  display: inline-flex;
-  min-height: 2.45rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.55rem;
-  border: 1px solid var(--line);
-  border-radius: 0.78rem;
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--muted);
-  padding: 0.55rem 0.75rem;
-  font-size: 0.88rem;
-  font-weight: 600;
-}
-
-.details-toggle:hover,
-.quiet-button:hover {
-  border-color: rgba(240, 201, 135, 0.4);
-  background: rgba(240, 201, 135, 0.05);
-  color: var(--accent);
-}
-
-.details-panel {
-  /* Psychology: progressive disclosure. Details animate in quickly so optional complexity feels available, not permanent. */
-  display: grid;
-  gap: 0.65rem;
-  border: 1px solid var(--line);
-  border-radius: 0.82rem;
-  background: rgba(255, 255, 255, 0.018);
-  padding: 0.65rem;
-}
-
-.type-rail {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.35rem;
-}
-
-.type-rail button {
-  display: grid;
-  min-height: 2.65rem;
-  place-items: center;
-  gap: 0.2rem;
-  border: 1px solid var(--line);
-  border-radius: 0.7rem;
-  background: rgba(255, 255, 255, 0.018);
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 600;
-}
-
-.type-rail button.active {
-  border-color: rgba(240, 201, 135, 0.46);
-  background: rgba(240, 201, 135, 0.08);
-  color: var(--accent);
-}
-
-.field {
-  display: grid;
-  gap: 0.4rem;
-}
-
-.field input,
-.field textarea {
-  padding: 0.7rem 0.8rem;
-}
-
-.field textarea {
-  resize: none;
-}
-
-.place-grid {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.place-search-button {
-  justify-content: center;
-}
-
-.place-results {
-  display: grid;
-  grid-column: 1 / -1;
-  gap: 0.35rem;
-}
-
-.place-results button {
-  display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.55rem;
-  border: 1px solid var(--line);
-  border-radius: 0.72rem;
-  background: rgba(255, 255, 255, 0.025);
-  color: var(--muted);
-  padding: 0.58rem 0.68rem;
-  text-align: left;
-  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
-}
-
+.module-tabs button:hover,
+.later-list article:hover,
+.small-check:hover,
+.big-check:hover,
+.edit-icon:hover,
+.module-status-grid button:hover,
+.phone-mode-action:hover,
 .place-results button:hover {
-  border-color: rgba(240, 201, 135, 0.35);
-  background: rgba(240, 201, 135, 0.05);
-  color: var(--accent);
-}
-
-.place-results span {
-  overflow: hidden;
-  font-size: 0.78rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.place-map {
-  /* Psychology: object permanence. A map gives the user a physical place to attach the reminder, not abstract coordinates to remember. */
-  grid-column: 1 / -1;
-  min-height: 13rem;
-  overflow: hidden;
-  border: 1px solid rgba(240, 201, 135, 0.18);
-  border-radius: 0.82rem;
-  background: rgba(255, 255, 255, 0.025);
-}
-
-:host ::ng-deep .place-map .leaflet-control-zoom a {
-  border-color: var(--line);
-  background: rgba(5, 7, 11, 0.86);
-  color: var(--ink);
-}
-
-:host ::ng-deep .place-pin {
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-}
-
-:host ::ng-deep .place-pin span {
-  display: block;
-  width: 1.15rem;
-  height: 1.15rem;
-  border: 2px solid var(--accent-ink);
-  border-radius: 999px;
-  background: var(--accent);
-  box-shadow: 0 0 0 0.45rem rgba(240, 201, 135, 0.18), 0 12px 26px rgba(0, 0, 0, 0.45);
-}
-
-.place-label-field,
-.place-button {
-  grid-column: 1 / -1;
-}
-
-.place-hint,
-.location-error {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 0.78rem;
-  line-height: 1.45;
-}
-
-.place-hint {
-  color: var(--muted);
-}
-
-.location-error {
-  /* Psychology: trust repair. Location failures are shown calmly where the user can fix the setup, not as a blocking alert. */
-  border: 1px solid rgba(217, 148, 148, 0.28);
-  border-radius: 0.72rem;
-  background: rgba(217, 148, 148, 0.07);
-  color: var(--rose);
-  padding: 0.6rem 0.7rem;
-}
-
-.focus-stack {
-  display: grid;
-  gap: 0.65rem;
-  align-items: start;
-}
-
-.next-card,
-.later-card,
-.reminder-list-card {
-  padding: 0.85rem;
-}
-
-.next-card {
-  /* Psychology: spatial memory. The primary slot keeps a steady footprint so adding/completing tasks does not make the page bounce. */
-  min-height: 7.75rem;
-}
-
-.later-card {
-  /* Psychology: cognitive load reduction. The secondary queue reserves predictable space for the capped three-item list. */
-  min-height: 14.75rem;
-}
-
-.reminder-list-card {
-  min-height: 12.6rem;
-}
-
-.section-kicker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.pulse-dot {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: var(--accent);
-}
-
-.next-item {
-  /* Psychology: single-action bias. The check control is larger than secondary actions because completion is the desired next behavior. */
-  position: relative;
-  display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2rem;
-  align-items: center;
-  gap: 0.78rem;
-  margin-top: 0.8rem;
-  min-height: 3.35rem;
-  border: 1px solid transparent;
-  border-radius: 0.85rem;
-  padding: 0.28rem 0.55rem 0.28rem 0.28rem;
-}
-
-.big-check {
-  position: relative;
-  display: grid;
-  width: 2.75rem;
-  height: 2.75rem;
-  place-items: center;
-  overflow: visible;
-  border: 1px solid rgba(240, 201, 135, 0.42);
-  border-radius: 0.85rem;
-  background: rgba(240, 201, 135, 0.08);
-  color: var(--accent);
-}
-
-.check-ripple {
-  /* Psychology: micro-win feedback. The ripple says "the app heard me" at the exact touch target. */
-  position: absolute;
-  inset: -0.34rem;
-  border: 1px solid rgba(240, 201, 135, 0.36);
-  border-radius: inherit;
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.72);
-}
-
-.big-check:hover {
-  background: rgba(240, 201, 135, 0.13);
   transform: translateY(-1px);
 }
 
-.next-item.completing,
-.later-list article.completing {
-  /* Psychology: Zeigarnik relief. The completed open loop leaves upward quickly, confirming closure without lingering. */
-  border-color: rgba(240, 201, 135, 0.18);
-  background:
-    linear-gradient(90deg, rgba(240, 201, 135, 0.08), rgba(240, 201, 135, 0.02) 62%, transparent);
-  box-shadow: inset 0 0 0 1px rgba(240, 201, 135, 0.03);
-}
-
-.next-item.completing .task-copy,
-.later-list article.completing .task-copy {
-  opacity: 0.82;
-}
-
-.next-item.completing p,
-.later-list article.completing p {
-  color: color-mix(in srgb, var(--muted) 78%, var(--accent));
-}
-
-.next-item h2,
-.empty-next h2 {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 1.08rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.next-item p,
-.empty-next p,
-.later-list p,
-.module-status-grid span {
-  color: var(--muted);
-}
-
-.next-item p {
-  margin-top: 0.24rem;
-  font-size: 0.82rem;
-}
-
-.empty-next {
-  display: grid;
-  min-height: 7rem;
-  place-items: center;
-  padding: 0.85rem;
-  text-align: center;
-}
-
-.empty-next i {
+.later-list article:hover,
+.small-check:hover,
+.big-check:hover,
+.edit-icon:hover,
+.module-status-grid button:hover,
+.place-results button:hover {
+  border-color: rgba(240, 201, 135, 0.28);
+  background: rgba(240, 201, 135, 0.045);
   color: var(--accent);
-  font-size: 1.15rem;
-}
-
-.empty-next h2 {
-  margin-top: 0.65rem;
-}
-
-.empty-next p {
-  margin-top: 0.25rem;
-  font-size: 0.88rem;
-}
-
-.compact-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.compact-heading span {
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 0.2rem 0.55rem;
-  color: var(--accent);
-  font-size: 0.78rem;
-}
-
-.later-list {
-  display: grid;
-  grid-auto-rows: 3.55rem;
-  gap: 0.45rem;
-  margin-top: 0.65rem;
-  overflow: hidden;
-}
-
-.later-list article {
-  /* Psychology: Zeigarnik effect, softened. Later tasks remain visible enough to trust, but visually quieter than the active open loop. */
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 2rem 2rem;
-  align-items: center;
-  gap: 0.55rem;
-  border: 1px solid var(--line);
-  border-radius: 0.75rem;
-  background: rgba(255, 255, 255, 0.02);
-  padding: 0.5rem;
-  min-height: 3.55rem;
-  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, transform 220ms var(--ease-calm), opacity 220ms ease;
-}
-
-.later-list article:hover {
-  /* Psychology: recognition over recall. A faint lift on hover confirms the row is interactive without competing with Next Up. */
-  border-color: rgba(240, 201, 135, 0.2);
-  background: rgba(255, 255, 255, 0.035);
-  transform: translateY(-1px);
-}
-
-.later-list h3 {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 0.86rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 520px) {
-  .home-header {
-    align-items: flex-start;
-  }
-
-  .header-actions {
-    gap: 0.35rem;
-  }
-
-  .sign-out-button span {
-    display: none;
-  }
-
-  .sign-out-button {
-    width: 2.45rem;
-    justify-content: center;
-    padding-inline: 0;
-  }
-
-  .capture-row input,
-  .field input,
-  .field textarea {
-    font-size: 16px;
-  }
-
-  .diagnostic-panel dl div {
-    grid-template-columns: 1fr;
-    gap: 0.12rem;
-  }
-}
-
-.later-list p {
-  margin-top: 0.15rem;
-  font-size: 0.78rem;
-}
-
-.small-check,
-.ghost-icon {
-  position: relative;
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  overflow: visible;
-  border: 1px solid var(--line);
-  border-radius: 0.62rem;
-  background: rgba(255, 255, 255, 0.02);
-  color: var(--muted);
-}
-
-.small-check:hover {
-  border-color: rgba(240, 201, 135, 0.4);
-  color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.edit-icon:hover {
-  border-color: rgba(240, 201, 135, 0.36);
-  color: var(--accent);
-  transform: translateY(-1px);
 }
 
 .ghost-icon:not(.edit-icon):hover {
-  border-color: rgba(217, 148, 148, 0.4);
+  border-color: rgba(217, 148, 148, 0.42);
+  background: rgba(217, 148, 148, 0.06);
   color: var(--rose);
   transform: translateY(-1px);
-}
-
-.phone-mode-card,
-.today-card {
-  padding: 0.7rem;
-}
-
-.phone-mode-card {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.today-card {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.phone-mode-action {
-  display: flex;
-  min-height: 3.1rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border: 1px solid rgba(240, 201, 135, 0.46);
-  border-radius: 0.78rem;
-  background: rgba(240, 201, 135, 0.1);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.phone-mode-action:hover {
-  border-color: rgba(240, 201, 135, 0.7);
-  background: rgba(240, 201, 135, 0.14);
-  transform: translateY(-1px);
-}
-
-.module-status-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.4rem;
-}
-
-.module-status-grid button,
-.module-status-grid div {
-  display: grid;
-  min-height: 2.9rem;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 0.72rem;
-  background: rgba(255, 255, 255, 0.018);
-  color: var(--muted);
-  text-align: center;
-}
-
-.module-status-grid button:hover {
-  border-color: rgba(240, 201, 135, 0.4);
-  color: var(--accent);
-}
-
-.module-status-grid strong {
-  color: var(--ink);
-}
-
-.module-status-grid span {
-  max-width: 6rem;
-  overflow: hidden;
-  font-size: 0.64rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .details-toggle:active,
@@ -890,68 +682,162 @@ h1 {
 .big-check:active,
 .small-check:active,
 .ghost-icon:active,
-.type-rail button:active {
-  transform: scale(0.96);
+.type-rail button:active,
+.module-tabs button:active {
+  transform: scale(0.97);
 }
 
-@media (min-width: 760px) {
-  .home-shell {
-    padding: 1rem;
+@media (max-width: 980px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+    padding-bottom: calc(5.8rem + env(safe-area-inset-bottom));
   }
 
-  .focus-stack {
-    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.58fr);
+  .app-sidebar {
+    position: fixed;
+    inset: auto max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+    z-index: 15;
+    display: block;
+    min-height: 0;
+    padding: 0.45rem;
+    border-radius: 0.95rem;
   }
 
-  .next-card {
-    grid-row: span 2;
+  .brand-block,
+  .sidebar-summary,
+  .sidebar-actions {
+    display: none;
   }
 
-  .place-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .module-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.35rem;
   }
 
-  .place-button {
-    grid-column: 1 / -1;
+  .module-tabs button {
+    grid-template-columns: 1fr;
+    min-height: 3.6rem;
+    justify-items: center;
+    gap: 0.22rem;
+    padding: 0.38rem;
+    text-align: center;
+  }
+
+  .module-tabs button i {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .module-tabs button strong {
+    display: none;
+  }
+
+  .module-tabs button span {
+    max-width: 100%;
+    font-size: 0.72rem;
+  }
+
+  .task-layout,
+  .reminders-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "next"
+      "queue"
+      "side";
+  }
+
+  .reminders-layout {
+    grid-template-areas:
+      "queue"
+      "side";
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 430px) {
-  .home-shell {
-    gap: 0.55rem;
+@media (max-width: 620px) {
+  .app-shell {
+    gap: 0.75rem;
     padding:
-      max(0.6rem, env(safe-area-inset-top))
-      max(0.6rem, env(safe-area-inset-right))
-      max(0.6rem, env(safe-area-inset-bottom))
-      max(0.6rem, env(safe-area-inset-left));
+      max(0.7rem, env(safe-area-inset-top))
+      max(0.7rem, env(safe-area-inset-right))
+      calc(5.6rem + env(safe-area-inset-bottom))
+      max(0.7rem, env(safe-area-inset-left));
   }
 
-  .home-card,
-  .next-card,
-  .later-card,
-  .reminder-list-card,
+  .topbar,
+  .capture-panel,
+  .task-panel,
+  .today-card,
   .phone-mode-card,
-  .today-card {
-    border-radius: 0.9rem;
+  .diagnostic-panel {
+    border-radius: 0.82rem;
+    padding: 0.82rem;
   }
 
-  .type-rail button {
-    font-size: 0.66rem;
+  .topbar {
+    min-height: auto;
   }
 
-  .home-card,
-  .next-card,
-  .later-card,
-  .reminder-list-card {
-    padding: 0.75rem;
+  .topbar h2 {
+    font-size: 1.55rem;
   }
 
-  h1 {
-    font-size: clamp(1.7rem, 12vw, 2.5rem);
+  .capture-meta {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .capture-zone {
-    margin-top: 1rem;
+  .details-toggle,
+  .save-status {
+    width: 100%;
+    max-width: none;
+  }
+
+  .capture-row {
+    grid-template-columns: minmax(0, 1fr) 3rem;
+    gap: 0.5rem;
+  }
+
+  .capture-row input,
+  .field input,
+  .field textarea {
+    font-size: 16px;
+  }
+
+  .add-button {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .type-rail,
+  .place-grid,
+  .module-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .next-item {
+    grid-template-columns: 2.8rem minmax(0, 1fr) 2.1rem;
+    gap: 0.58rem;
+    padding: 0.62rem;
+  }
+
+  .big-check {
+    width: 2.8rem;
+    height: 2.8rem;
+  }
+
+  .later-list article,
+  .reminder-list article {
+    grid-template-columns: 2.1rem minmax(0, 1fr) 2rem 2rem;
+    gap: 0.42rem;
+  }
+
+  .diagnostic-panel dl div {
+    grid-template-columns: 1fr;
+    gap: 0.12rem;
   }
 }
 
@@ -965,16 +851,13 @@ h1 {
   .big-check:hover,
   .small-check:hover,
   .ghost-icon:hover,
-  .later-list article:hover {
+  .later-list article:hover,
+  .place-results button:hover {
     transform: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scroll-progress span {
-    transform: scaleX(0);
-  }
-
   .add-button,
   .details-toggle,
   .quiet-button,
@@ -987,7 +870,8 @@ h1 {
   .later-list article,
   .capture-row input,
   .field input,
-  .field textarea {
+  .field textarea,
+  .place-results button {
     transition: none;
   }
 }
