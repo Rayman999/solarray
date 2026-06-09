@@ -39,6 +39,7 @@ const MOTION = {
 } as const;
 
 type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | `task-${string}`;
+type ModuleMode = 'tasks' | 'reminders' | 'settings';
 
 interface PlaceSearchResult {
   display_name: string;
@@ -100,6 +101,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly diagnosticsOpen = signal(false);
   readonly lastRuntimeError = signal('');
   readonly phoneModePreferred = signal(readPhoneModePreferred());
+  readonly activeModule = signal<ModuleMode>('tasks');
   readonly reducedMotion = signal(prefersReducedMotion());
   readonly useNativeScrollTimeline = supportsScrollTimeline();
   readonly scrollProgress = signal(0);
@@ -114,12 +116,13 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   private placeCircle?: L.Circle;
 
   readonly completionRate = computed(() => {
-    const total = this.store.reminders().length;
+    const total = this.taskReminders().length;
     if (!total) {
       return 0;
     }
 
-    return Math.round((this.store.completedReminders().length / total) * 100);
+    const completedTasks = this.store.completedReminders().filter((reminder) => reminder.kind !== 'location').length;
+    return Math.round((completedTasks / total) * 100);
   });
   readonly greeting = computed(() => {
     const hour = new Date().getHours();
@@ -134,8 +137,16 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     return 'Good evening';
   });
+  readonly taskReminders = computed(() => this.store.reminders().filter((reminder) => reminder.kind !== 'location'));
+  readonly openTaskReminders = computed(() => this.store.openReminders().filter((reminder) => reminder.kind !== 'location'));
+  readonly reminderReminders = computed(() => this.store.openReminders().filter((reminder) => reminder.kind === 'location'));
   readonly todayReminders = computed(() =>
-    [...this.store.openReminders()]
+    [...this.openTaskReminders()]
+      .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
+      .slice(0, 5)
+  );
+  readonly locationQueue = computed(() =>
+    [...this.reminderReminders()]
       .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime())
       .slice(0, 5)
   );
@@ -143,6 +154,16 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly nextReminder = computed(() => this.todayReminders()[0]);
   // Psychology: cognitive load reduction. Show only a short secondary queue so the user never has to scan the full backlog on mobile.
   readonly laterReminders = computed(() => this.todayReminders().slice(1, 4));
+  readonly captureTitle = computed(() => {
+    if (this.editingId()) {
+      return 'Editing';
+    }
+
+    return this.activeModule() === 'reminders' ? 'One place to remember' : 'One thing to do';
+  });
+  readonly capturePlaceholder = computed(() =>
+    this.activeModule() === 'reminders' ? 'What should happen there?' : 'Type it, tap plus, move on'
+  );
   readonly diagnosticRows = computed(() => {
     const user = this.auth.user();
 
@@ -152,6 +173,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       { label: 'Email', value: user?.email ?? 'none' },
       { label: 'Sync', value: this.store.syncState() },
       { label: 'Reminders', value: String(this.store.reminders().length) },
+      { label: 'Module', value: this.activeModule() },
       { label: 'Open', value: String(this.store.openReminders().length) },
       { label: 'Next', value: this.nextReminder()?.title ?? 'none' },
       { label: 'Store error', value: this.store.error() || 'none' },
@@ -237,6 +259,9 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const reminderTitle = this.title().trim();
     const latitude = Number(this.latitude());
     const longitude = Number(this.longitude());
+    if (this.activeModule() === 'reminders') {
+      this.kind.set('location');
+    }
     const hasLocation = this.kind() === 'location' && Number.isFinite(latitude) && Number.isFinite(longitude);
 
     const reminder: Reminder = {
@@ -298,6 +323,23 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
   }
 
+  selectModule(module: ModuleMode): void {
+    // Psychology: spatial memory. Modules keep related actions in one place so the user does not re-map the whole screen.
+    this.activeModule.set(module);
+
+    if (module === 'reminders') {
+      this.kind.set('location');
+      if (!this.detailsOpen()) {
+        this.openDetailsFlow();
+      }
+      return;
+    }
+
+    if (module === 'tasks' && this.kind() === 'location') {
+      this.kind.set('todo');
+    }
+  }
+
   toggleDetails(): void {
     if (this.detailsOpen()) {
       this.closeDetailsFlow();
@@ -352,6 +394,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
 
     this.editingId.set(reminder.id);
+    this.activeModule.set(reminder.kind === 'location' ? 'reminders' : 'tasks');
     this.title.set(reminder.title);
     this.notes.set(reminder.notes);
     this.kind.set(reminder.kind);
@@ -408,7 +451,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
-    this.location.resumePreferredWatch();
+    this.location.start(false);
   }
 
   private setPhoneModePreferred(value: boolean): void {
@@ -994,9 +1037,9 @@ function isStandaloneApp(): boolean {
 
 function readPhoneModePreferred(): boolean {
   try {
-    return window.localStorage.getItem(PHONE_MODE_KEY) === '1';
+    return window.localStorage.getItem(PHONE_MODE_KEY) !== '0';
   } catch {
-    return false;
+    return true;
   }
 }
 

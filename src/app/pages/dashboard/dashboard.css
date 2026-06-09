@@ -47,6 +47,7 @@
 .home-card,
 .next-card,
 .later-card,
+.reminder-list-card,
 .phone-mode-card,
 .today-card {
   /* Psychology: calm motivation. Hairline glass surfaces group decisions without adding heavy visual pressure. */
@@ -146,6 +147,37 @@ h1 {
 
 .capture-zone {
   margin-top: 1.25rem;
+}
+
+.module-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.38rem;
+  margin-top: 1rem;
+}
+
+.module-tabs button {
+  display: flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: rgba(255, 255, 255, 0.018);
+  color: var(--muted);
+  font: inherit;
+  font-weight: 700;
+}
+
+.module-tabs button.active {
+  border-color: rgba(240, 201, 135, 0.28);
+  color: var(--accent);
+}
+
+.module-tabs button:active {
+  transform: scale(0.97);
 }
 
 .intent-marker {
@@ -522,7 +554,8 @@ h1 {
 }
 
 .next-card,
-.later-card {
+.later-card,
+.reminder-list-card {
   padding: 0.85rem;
 }
 
@@ -534,6 +567,10 @@ h1 {
 .later-card {
   /* Psychology: cognitive load reduction. The secondary queue reserves predictable space for the capped three-item list. */
   min-height: 14.75rem;
+}
+
+.reminder-list-card {
+  min-height: 12.6rem;
 }
 
 .section-kicker {
@@ -782,13 +819,11 @@ h1 {
 }
 
 .phone-mode-card {
-  /* Psychology: implementation intention. One module owns the phone permissions so the user does not hunt for scattered setup actions. */
   display: grid;
   gap: 0.6rem;
 }
 
 .today-card {
-  /* Psychology: recognition over recall. Passive stats live separately from controls, so the screen explains itself at a glance. */
   display: grid;
   gap: 0.6rem;
 }
@@ -837,8 +872,6 @@ h1 {
 
 .module-status-grid strong {
   color: var(--ink);
-  font-size: 0.9rem;
-  line-height: 1;
 }
 
 .module-status-grid span {
@@ -848,16 +881,6 @@ h1 {
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.sync-error {
-  /* Psychology: trust repair. Sync failures need a quiet visible explanation so live data does not feel mysteriously broken. */
-  border: 1px solid rgba(217, 148, 148, 0.28);
-  border-radius: 0.72rem;
-  background: rgba(217, 148, 148, 0.07);
-  color: var(--rose);
-  padding: 0.7rem 0.8rem;
-  font-size: 0.82rem;
 }
 
 .details-toggle:active,
@@ -906,6 +929,7 @@ h1 {
   .home-card,
   .next-card,
   .later-card,
+  .reminder-list-card,
   .phone-mode-card,
   .today-card {
     border-radius: 0.9rem;
@@ -917,7 +941,8 @@ h1 {
 
   .home-card,
   .next-card,
-  .later-card {
+  .later-card,
+  .reminder-list-card {
     padding: 0.75rem;
   }
 
@@ -934,6 +959,7 @@ h1 {
   .add-button:hover,
   .details-toggle:hover,
   .quiet-button:hover,
+  .module-tabs button:hover,
   .module-status-grid button:hover,
   .phone-mode-action:hover,
   .big-check:hover,
@@ -952,6 +978,7 @@ h1 {
   .add-button,
   .details-toggle,
   .quiet-button,
+  .module-tabs button,
   .module-status-grid button,
   .phone-mode-action,
   .big-check,
