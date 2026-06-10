@@ -7,6 +7,7 @@ import * as L from 'leaflet';
 
 import { AuthService } from '../../auth.service';
 import { LocationReminderService } from '../../location-reminder.service';
+import { NativeLocationService } from '../../native-location.service';
 import { NotificationService } from '../../notification.service';
 import { Reminder, ReminderKind } from '../../reminder.model';
 import { ReminderStore } from '../../reminder-store.service';
@@ -68,6 +69,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly store = inject(ReminderStore);
   readonly notifications = inject(NotificationService);
   readonly location = inject(LocationReminderService);
+  readonly nativeLocation = inject(NativeLocationService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -197,6 +199,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       { label: 'Notify status', value: this.notifications.status() || 'none' },
       { label: 'Notify error', value: this.notifications.error() || 'none' },
       { label: 'Installed PWA', value: isStandaloneApp() ? 'yes' : 'no' },
+      { label: 'Native app', value: this.nativeLocation.available() ? 'yes' : 'no' },
+      { label: 'Native location', value: this.nativeLocation.isWatching() ? 'on' : 'off' },
+      { label: 'Native status', value: this.nativeLocation.status() || 'none' },
+      { label: 'Native error', value: this.nativeLocation.error() || 'none' },
       { label: 'Location watch', value: this.location.isWatching() ? 'on' : 'off' },
       { label: 'Phone mode', value: this.phoneModePreferred() ? 'armed' : 'off' },
       { label: 'Location error', value: this.location.error() || 'none' },
@@ -306,6 +312,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.saveStatusTone.set('success');
     this.saveStatus.set('');
     this.store.add(reminder);
+
+    if (reminder.location) {
+      void this.nativeLocation.start();
+    }
 
     this.resetCaptureForm();
     this.closeDetailsAfterCapture();
@@ -464,6 +474,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   async signOut(): Promise<void> {
     this.location.stop(false);
+    await this.nativeLocation.stop(false);
     await this.auth.logout();
     await this.router.navigateByUrl('/login');
   }
@@ -491,6 +502,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
 
     this.location.start(false);
+    void this.nativeLocation.start();
   }
 
   private setPhoneModePreferred(value: boolean): void {
@@ -503,8 +515,9 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   async toggleLocationWatch(): Promise<void> {
-    if (this.location.isWatching()) {
+    if (this.location.isWatching() || this.nativeLocation.isWatching()) {
       this.location.stop();
+      await this.nativeLocation.stop();
       this.setPhoneModePreferred(false);
       this.playStatusSignalFlow('.phone-mode-card .pi-map-marker, .phone-mode-card .pi-stop-circle');
       return;
@@ -512,12 +525,14 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     await this.notifications.requestPermission();
     this.location.start();
+    await this.nativeLocation.start();
     this.playStatusSignalFlow('.phone-mode-card .pi-map-marker, .phone-mode-card .pi-stop-circle');
   }
 
   async requestNotifications(): Promise<void> {
     const granted = await this.notifications.requestPermission();
-    if (granted) {
+    const nativeGranted = await this.nativeLocation.showTestNotification();
+    if (granted && !nativeGranted) {
       await this.notifications.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
     }
     this.playStatusSignalFlow('.phone-mode-card .pi-bell');
@@ -528,14 +543,17 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.setPhoneModePreferred(true);
     const granted = await this.notifications.requestPermission();
     this.location.start();
-    this.saveStatusTone.set(granted && !this.location.error() ? 'success' : 'error');
-    this.saveStatus.set(granted ? 'Phone mode armed.' : 'Notifications still need permission.');
+    const nativeStarted = await this.nativeLocation.start();
+    const isReady = (granted || nativeStarted) && !this.location.error() && !this.nativeLocation.error();
+    this.saveStatusTone.set(isReady ? 'success' : 'error');
+    this.saveStatus.set(nativeStarted ? 'Native phone mode armed.' : granted ? 'Phone mode armed while the app is open.' : 'Notifications still need permission.');
     this.playStatusSignalFlow('.phone-mode-card .pi-bolt, .phone-mode-card .pi-map-marker, .phone-mode-card .pi-bell');
   }
 
-  disablePhoneMode(): void {
+  async disablePhoneMode(): Promise<void> {
     this.setPhoneModePreferred(false);
     this.location.stop();
+    await this.nativeLocation.stop();
     this.saveStatusTone.set('success');
     this.saveStatus.set('Phone mode paused.');
     this.playStatusSignalFlow('.phone-mode-card .pi-pause-circle');
@@ -544,6 +562,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   async useCurrentLocation(): Promise<void> {
     await this.notifications.requestPermission();
     this.location.start();
+    void this.nativeLocation.start();
 
     const position = this.location.currentPosition() ?? (await this.location.useCurrentPosition().catch(() => null));
     if (!position) {
@@ -1162,6 +1181,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     await this.notifications.requestPermission();
     this.location.start();
+    void this.nativeLocation.start();
 
     if (!this.latitude() || !this.longitude()) {
       await this.useCurrentLocation();

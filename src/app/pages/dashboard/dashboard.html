@@ -237,7 +237,7 @@
         <section class="phone-mode-card" aria-label="Phone mode" data-entry-card>
           <div class="panel-heading">
             <p>Phone mode</p>
-            <span>{{ phoneModePreferred() ? 'Armed' : 'Off' }}</span>
+            <span>{{ nativeLocation.isWatching() ? 'Native' : phoneModePreferred() ? 'Armed' : 'Off' }}</span>
           </div>
 
           <button class="phone-mode-action" type="button" (click)="phoneModePreferred() ? disablePhoneMode() : enablePhoneMode()">
@@ -247,14 +247,20 @@
 
           <div class="module-status-grid">
             <button type="button" (click)="toggleLocationWatch()">
-              <i class="pi" [ngClass]="location.isWatching() ? 'pi-stop-circle' : 'pi-map-marker'"></i>
-              <span>{{ location.isWatching() ? 'Location on' : 'Location off' }}</span>
+              <i class="pi" [ngClass]="location.isWatching() || nativeLocation.isWatching() ? 'pi-stop-circle' : 'pi-map-marker'"></i>
+              <span>{{ nativeLocation.isWatching() ? 'Native on' : location.isWatching() ? 'Location on' : 'Location off' }}</span>
             </button>
             <button type="button" (click)="requestNotifications()">
               <i class="pi pi-bell"></i>
               <span>{{ notifications.permission() }}</span>
             </button>
           </div>
+          @if (nativeLocation.status()) {
+            <p class="location-error">{{ nativeLocation.status() }}</p>
+          }
+          @if (nativeLocation.error()) {
+            <p class="location-error">{{ nativeLocation.error() }}</p>
+          }
         </section>
 
         <section class="today-card" aria-label="Account actions" data-entry-card>
