@@ -1,5 +1,5 @@
 import { CommonModule, DatePipe } from '@angular/common';
-import { AfterViewInit, Component, computed, ElementRef, HostListener, inject, OnDestroy, signal, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, inject, OnDestroy, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { gsap } from 'gsap';
@@ -118,6 +118,17 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   private placeMap?: L.Map;
   private placeMarker?: L.Marker;
   private placeCircle?: L.Circle;
+  private phoneMarker?: L.Marker;
+  private phoneAccuracyCircle?: L.Circle;
+
+  private readonly syncPhonePositionOnMap = effect(() => {
+    const position = this.location.currentPosition();
+    if (!position) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => this.syncPhonePosition(position));
+  });
 
   readonly completionRate = computed(() => {
     const total = this.taskReminders().length;
@@ -531,13 +542,18 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   async useCurrentLocation(): Promise<void> {
-    const position = this.location.currentPosition() ?? (await this.readCurrentPosition().catch(() => null));
+    await this.notifications.requestPermission();
+    this.location.start();
+
+    const position = this.location.currentPosition() ?? (await this.location.useCurrentPosition().catch(() => null));
     if (!position) {
       return;
     }
 
     this.setSelectedPlace(position.latitude, position.longitude, 'Current location', 17);
     this.kind.set('location');
+    this.saveStatusTone.set('success');
+    this.saveStatus.set('Current location pinned.');
   }
 
   setRadius(value: number): void {
@@ -588,20 +604,6 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.placeResults.set([]);
   }
 
-  private readCurrentPosition(): Promise<{ latitude: number; longitude: number }> {
-    if (!('geolocation' in navigator)) {
-      return Promise.reject(new Error('Location is not available on this device.'));
-    }
-
-    return new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(
-        ({ coords }) => resolve({ latitude: coords.latitude, longitude: coords.longitude }),
-        reject,
-        { enableHighAccuracy: true, maximumAge: 30_000, timeout: 20_000 }
-      );
-    });
-  }
-
   private resetCaptureForm(): void {
     this.editingId.set(null);
     this.title.set('');
@@ -628,13 +630,18 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     const latitude = Number(this.latitude());
     const longitude = Number(this.longitude());
+    const currentPosition = this.location.currentPosition();
     const center: L.LatLngExpression =
-      Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : [-26.2041, 28.0473];
+      Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? [latitude, longitude]
+        : currentPosition
+          ? [currentPosition.latitude, currentPosition.longitude]
+          : [-26.2041, 28.0473];
 
     this.placeMap = L.map(this.placeMapElement, {
       zoomControl: false,
       attributionControl: false
-    }).setView(center, Number.isFinite(latitude) && Number.isFinite(longitude) ? 16 : 11);
+    }).setView(center, Number.isFinite(latitude) && Number.isFinite(longitude) || currentPosition ? 16 : 11);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -642,31 +649,15 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }).addTo(this.placeMap);
     L.control.zoom({ position: 'bottomright' }).addTo(this.placeMap);
 
-    this.placeMarker = L.marker(center, {
-      draggable: true,
-      icon: L.divIcon({
-        className: 'place-pin',
-        html: '<span></span>',
-        iconSize: [26, 26],
-        iconAnchor: [13, 13]
-      })
-    }).addTo(this.placeMap);
-    this.placeCircle = L.circle(center, {
-      radius: this.radiusMeters(),
-      color: '#f0c987',
-      fillColor: '#f0c987',
-      fillOpacity: 0.08,
-      opacity: 0.45,
-      weight: 1
-    }).addTo(this.placeMap);
+    if (currentPosition) {
+      this.syncPhonePosition(currentPosition);
+    }
+
+    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+      this.ensureSelectedPlaceLayer(center);
+    }
 
     this.placeMap.on('click', (event) => this.setSelectedPlace(event.latlng.lat, event.latlng.lng, 'Pinned place'));
-    this.placeMarker.on('dragend', () => {
-      const position = this.placeMarker?.getLatLng();
-      if (position) {
-        this.setSelectedPlace(position.lat, position.lng, 'Pinned place');
-      }
-    });
   }
 
   private setSelectedPlace(latitude: number, longitude: number, label: string, zoom?: number): void {
@@ -679,6 +670,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.longitude.set(longitude.toFixed(6));
     this.placeLabel.set(label);
     this.ensurePlaceMap();
+    this.ensureSelectedPlaceLayer(position);
     this.placeMarker?.setLatLng(position);
     this.placeCircle?.setLatLng(position);
     this.placeMap?.setView(position, zoom ?? this.placeMap.getZoom(), { animate: !this.reducedMotion() });
@@ -693,6 +685,68 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     this.placeCircle?.setLatLng([latitude, longitude]);
     this.placeCircle?.setRadius(this.radiusMeters());
+  }
+
+  private ensureSelectedPlaceLayer(position: L.LatLngExpression): void {
+    if (!this.placeMap || this.placeMarker || this.placeCircle) {
+      return;
+    }
+
+    this.placeMarker = L.marker(position, {
+      draggable: true,
+      icon: L.divIcon({
+        className: 'place-pin',
+        html: '<span></span>',
+        iconSize: [26, 26],
+        iconAnchor: [13, 13]
+      })
+    }).addTo(this.placeMap);
+    this.placeCircle = L.circle(position, {
+      radius: this.radiusMeters(),
+      color: '#f0c987',
+      fillColor: '#f0c987',
+      fillOpacity: 0.08,
+      opacity: 0.45,
+      weight: 1
+    }).addTo(this.placeMap);
+    this.placeMarker.on('dragend', () => {
+      const position = this.placeMarker?.getLatLng();
+      if (position) {
+        this.setSelectedPlace(position.lat, position.lng, 'Pinned place');
+      }
+    });
+  }
+
+  private syncPhonePosition(position: { latitude: number; longitude: number; accuracyMeters?: number }): void {
+    if (!this.placeMap) {
+      return;
+    }
+
+    const latLng: L.LatLngExpression = [position.latitude, position.longitude];
+    if (!this.phoneMarker) {
+      this.phoneMarker = L.marker(latLng, {
+        interactive: false,
+        icon: L.divIcon({
+          className: 'phone-pin',
+          html: '<span></span>',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        })
+      }).addTo(this.placeMap);
+      this.phoneAccuracyCircle = L.circle(latLng, {
+        radius: Math.max(position.accuracyMeters ?? 25, 20),
+        color: '#93b6a0',
+        fillColor: '#93b6a0',
+        fillOpacity: 0.08,
+        opacity: 0.32,
+        weight: 1
+      }).addTo(this.placeMap);
+      return;
+    }
+
+    this.phoneMarker.setLatLng(latLng);
+    this.phoneAccuracyCircle?.setLatLng(latLng);
+    this.phoneAccuracyCircle?.setRadius(Math.max(position.accuracyMeters ?? 25, 20));
   }
 
   private playPageEntryFlow(): void {
@@ -1091,15 +1145,26 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.activeModule.set(module);
 
     if (module === 'reminders') {
-      this.kind.set('location');
-      if (!this.detailsOpen()) {
-        this.openDetailsFlow();
-      }
+      void this.activateLocationReminderSetup();
       return;
     }
 
     if (module === 'tasks' && this.kind() === 'location') {
       this.kind.set('todo');
+    }
+  }
+
+  private async activateLocationReminderSetup(): Promise<void> {
+    this.kind.set('location');
+    if (!this.detailsOpen()) {
+      this.openDetailsFlow();
+    }
+
+    await this.notifications.requestPermission();
+    this.location.start();
+
+    if (!this.latitude() || !this.longitude()) {
+      await this.useCurrentLocation();
     }
   }
 }

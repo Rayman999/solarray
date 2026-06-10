@@ -7,6 +7,7 @@ import { ReminderStore } from './reminder-store.service';
 interface Coordinates {
   latitude: number;
   longitude: number;
+  accuracyMeters?: number;
 }
 
 const LOCATION_WATCH_KEY = 'solarray.locationWatchPreferred';
@@ -83,7 +84,8 @@ export class LocationReminderService {
         this.error.set('');
         this.currentPosition.set({
           latitude: coords.latitude,
-          longitude: coords.longitude
+          longitude: coords.longitude,
+          accuracyMeters: coords.accuracy
         });
         await this.notifyNearby();
       },
@@ -121,7 +123,8 @@ export class LocationReminderService {
         ({ coords }) => {
           const position = {
             latitude: coords.latitude,
-            longitude: coords.longitude
+            longitude: coords.longitude,
+            accuracyMeters: coords.accuracy
           };
           this.error.set('');
           this.currentPosition.set(position);

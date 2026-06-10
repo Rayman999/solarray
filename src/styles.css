@@ -405,3 +405,19 @@ select:focus-visible {
   background: var(--accent);
   box-shadow: 0 0 0 0.45rem rgba(240, 201, 135, 0.18), 0 12px 26px rgba(0, 0, 0, 0.45);
 }
+
+.phone-pin {
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+}
+
+.phone-pin span {
+  display: block;
+  width: 0.8rem;
+  height: 0.8rem;
+  border: 2px solid #05070b;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 0 0.32rem rgba(147, 182, 160, 0.2), 0 10px 22px rgba(0, 0, 0, 0.45);
+}
