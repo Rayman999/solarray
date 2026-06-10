@@ -102,6 +102,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly radiusMeters = signal(250);
   readonly editingId = signal<string | null>(null);
   readonly completingId = signal<string | null>(null);
+  readonly detailModalId = signal<string | null>(null);
+  readonly detailTitle = signal('');
+  readonly detailNotes = signal('');
+  readonly detailDueAt = signal(toLocalInputValue(new Date()));
   readonly saveStatus = signal('');
   readonly saveStatusTone = signal<'success' | 'error'>('success');
   readonly diagnosticsOpen = signal(false);
@@ -169,6 +173,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   );
   // Psychology: Zeigarnik effect. Keep exactly one open loop visually dominant so the backlog does not become mental clutter.
   readonly nextReminder = computed(() => this.todayReminders()[0]);
+  readonly activeDetailReminder = computed(() => {
+    const id = this.detailModalId();
+    return id ? this.store.reminders().find((reminder) => reminder.id === id) : undefined;
+  });
   // Psychology: cognitive load reduction. Show only a short secondary queue so the user never has to scan the full backlog on mobile.
   readonly laterReminders = computed(() => this.todayReminders().slice(1, 4));
   readonly captureTitle = computed(() => {
@@ -423,6 +431,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   completeReminder(id: string): void {
+    if (this.detailModalId() === id) {
+      this.closeTaskDetails();
+    }
+
     if (this.reducedMotion()) {
       const reminder = this.store.reminders().find((candidate) => candidate.id === id);
       void this.store.toggle(id);
@@ -442,6 +454,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       this.cancelEdit();
     }
 
+    if (this.detailModalId() === id) {
+      this.closeTaskDetails();
+    }
+
     if (this.reducedMotion()) {
       void this.store.remove(id);
       this.playProgressCounterFlow();
@@ -455,6 +471,11 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   editReminder(id: string): void {
     const reminder = this.store.reminders().find((candidate) => candidate.id === id);
     if (!reminder) {
+      return;
+    }
+
+    if (reminder.kind !== 'location') {
+      this.openTaskDetails(id);
       return;
     }
 
@@ -486,6 +507,48 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   cancelEdit(): void {
     this.resetCaptureForm();
+  }
+
+  openTaskDetails(id: string): void {
+    const reminder = this.store.reminders().find((candidate) => candidate.id === id);
+    if (!reminder) {
+      return;
+    }
+
+    this.detailModalId.set(reminder.id);
+    this.detailTitle.set(reminder.title);
+    this.detailNotes.set(reminder.notes);
+    this.detailDueAt.set(toLocalInputValue(new Date(reminder.dueAt)));
+  }
+
+  closeTaskDetails(): void {
+    this.detailModalId.set(null);
+    this.detailTitle.set('');
+    this.detailNotes.set('');
+    this.detailDueAt.set(toLocalInputValue(new Date()));
+  }
+
+  saveTaskDetails(): void {
+    const reminder = this.activeDetailReminder();
+    const title = this.detailTitle().trim();
+    if (!reminder || !title) {
+      return;
+    }
+
+    this.store.add({
+      ...reminder,
+      title,
+      notes: this.detailNotes().trim(),
+      dueAt: new Date(this.detailDueAt()).toISOString()
+    });
+    this.saveStatusTone.set('success');
+    this.saveStatus.set('Task updated.');
+    window.setTimeout(() => {
+      if (this.saveStatus() === 'Task updated.') {
+        this.saveStatus.set('');
+      }
+    }, 2_000);
+    this.closeTaskDetails();
   }
 
   async signOut(): Promise<void> {

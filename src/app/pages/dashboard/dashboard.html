@@ -38,20 +38,22 @@
             </button>
           </div>
 
-          <div class="capture-meta">
-            <button class="details-toggle" type="button" (click)="toggleDetails()">
-              <i class="pi pi-sliders-h"></i>
-              <span>{{ detailsOpen() ? 'Hide details' : 'Details' }}</span>
-              <i class="pi" [ngClass]="detailsOpen() ? 'pi-angle-up' : 'pi-angle-down'"></i>
-            </button>
-
-            @if (editingId()) {
-              <button class="quiet-button cancel-edit-button" type="button" (click)="cancelEdit()">
-                <i class="pi pi-times"></i>
-                <span>Cancel</span>
+          @if (activeModule() === 'reminders' || editingId()) {
+            <div class="capture-meta">
+              <button class="details-toggle" type="button" (click)="toggleDetails()">
+                <i class="pi pi-sliders-h"></i>
+                <span>{{ detailsOpen() ? 'Hide details' : 'Details' }}</span>
+                <i class="pi" [ngClass]="detailsOpen() ? 'pi-angle-up' : 'pi-angle-down'"></i>
               </button>
-            }
-          </div>
+
+              @if (editingId()) {
+                <button class="quiet-button cancel-edit-button" type="button" (click)="cancelEdit()">
+                  <i class="pi pi-times"></i>
+                  <span>Cancel</span>
+                </button>
+              }
+            </div>
+          }
 
           @if (saveStatus()) {
             <p class="save-status" [class.error]="saveStatusTone() === 'error'">{{ saveStatus() }}</p>
@@ -148,8 +150,8 @@
         </div>
 
         @if (nextReminder(); as next) {
-          <article class="next-item" [class.completing]="completingId() === next.id" data-motion-item [attr.data-reminder-id]="next.id">
-            <button class="big-check" type="button" (click)="completeReminder(next.id)" aria-label="Complete task">
+          <article class="next-item" [class.completing]="completingId() === next.id" data-motion-item [attr.data-reminder-id]="next.id" (click)="openTaskDetails(next.id)">
+            <button class="big-check" type="button" (click)="$event.stopPropagation(); completeReminder(next.id)" aria-label="Complete task">
               <span class="check-ripple" aria-hidden="true"></span>
               <i class="pi pi-circle"></i>
             </button>
@@ -157,7 +159,7 @@
               <h3>{{ next.title }}</h3>
               <p>{{ next.dueAt | date:'EEE, HH:mm' }}</p>
             </div>
-            <button class="ghost-icon edit-icon" type="button" (click)="editReminder(next.id)" aria-label="Edit next task">
+            <button class="ghost-icon edit-icon" type="button" (click)="$event.stopPropagation(); openTaskDetails(next.id)" aria-label="View task details">
               <i class="pi pi-pencil"></i>
             </button>
           </article>
@@ -165,8 +167,8 @@
           @if (laterReminders().length) {
             <div class="later-list">
               @for (reminder of laterReminders(); track reminder.id) {
-                <article [class.completing]="completingId() === reminder.id" data-motion-item [attr.data-reminder-id]="reminder.id">
-                  <button class="small-check" type="button" (click)="completeReminder(reminder.id)" aria-label="Mark task complete">
+                <article [class.completing]="completingId() === reminder.id" data-motion-item [attr.data-reminder-id]="reminder.id" (click)="openTaskDetails(reminder.id)">
+                  <button class="small-check" type="button" (click)="$event.stopPropagation(); completeReminder(reminder.id)" aria-label="Mark task complete">
                     <span class="check-ripple" aria-hidden="true"></span>
                     <i class="pi pi-circle"></i>
                   </button>
@@ -174,10 +176,10 @@
                     <h3>{{ reminder.title }}</h3>
                     <p>{{ reminder.dueAt | date:'HH:mm' }}</p>
                   </div>
-                  <button class="ghost-icon edit-icon" type="button" (click)="editReminder(reminder.id)" aria-label="Edit task">
+                  <button class="ghost-icon edit-icon" type="button" (click)="$event.stopPropagation(); openTaskDetails(reminder.id)" aria-label="View task details">
                     <i class="pi pi-pencil"></i>
                   </button>
-                  <button class="ghost-icon" type="button" (click)="deleteReminder(reminder.id)" aria-label="Delete task">
+                  <button class="ghost-icon" type="button" (click)="$event.stopPropagation(); deleteReminder(reminder.id)" aria-label="Delete task">
                     <i class="pi pi-trash"></i>
                   </button>
                 </article>
@@ -317,6 +319,52 @@
       }
     </section>
   </section>
+
+  @if (activeDetailReminder(); as task) {
+    <section class="task-modal-backdrop" role="presentation" (click)="closeTaskDetails()">
+      <article class="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title" (click)="$event.stopPropagation()">
+        <header>
+          <div>
+            <p class="eyebrow">Task details</p>
+            <h2 id="task-modal-title">{{ task.title }}</h2>
+          </div>
+          <button class="ghost-icon" type="button" (click)="closeTaskDetails()" aria-label="Close task details">
+            <i class="pi pi-times"></i>
+          </button>
+        </header>
+
+        <label class="field">
+          <span>Task</span>
+          <input name="detailTitle" [ngModel]="detailTitle()" (ngModelChange)="detailTitle.set($event)" autocomplete="off">
+        </label>
+
+        <label class="field">
+          <span>When</span>
+          <input name="detailDueAt" type="datetime-local" [ngModel]="detailDueAt()" (ngModelChange)="detailDueAt.set($event)">
+        </label>
+
+        <label class="field">
+          <span>Notes</span>
+          <textarea name="detailNotes" rows="4" [ngModel]="detailNotes()" (ngModelChange)="detailNotes.set($event)" placeholder="Add context only if it helps"></textarea>
+        </label>
+
+        <div class="task-modal-actions">
+          <button class="quiet-button" type="button" (click)="completeReminder(task.id)">
+            <i class="pi pi-check"></i>
+            <span>Complete</span>
+          </button>
+          <button class="quiet-button danger-action" type="button" (click)="deleteReminder(task.id)">
+            <i class="pi pi-trash"></i>
+            <span>Delete</span>
+          </button>
+          <button class="phone-mode-action" type="button" (click)="saveTaskDetails()">
+            <i class="pi pi-save"></i>
+            <span>Save</span>
+          </button>
+        </div>
+      </article>
+    </section>
+  }
 
   <nav class="bottom-nav" aria-label="Solarray modules" data-entry-card>
     <button type="button" [class.active]="activeModule() === 'tasks'" (click)="selectModule('tasks')">
