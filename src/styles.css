@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "primeicons/primeicons.css";
-@import "leaflet/dist/leaflet.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
   color-scheme: dark;
@@ -384,10 +384,43 @@ select:focus-visible {
   background: rgba(255, 255, 255, 0.025);
 }
 
-.place-map .leaflet-control-zoom a {
-  border-color: var(--line);
-  background: rgba(5, 7, 11, 0.86);
+/* MapLibre chrome, retinted for the observatory. */
+.place-map .maplibregl-ctrl-group {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: rgba(5, 7, 11, 0.88);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.place-map .maplibregl-ctrl-group button {
+  background: transparent;
+}
+
+.place-map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid var(--line);
+}
+
+.place-map .maplibregl-ctrl button .maplibregl-ctrl-icon {
+  filter: invert(0.88);
+}
+
+.place-map .maplibregl-ctrl-attrib {
+  border-radius: 0.5rem 0 0 0;
+  background: rgba(5, 7, 11, 0.7);
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.place-map .maplibregl-ctrl-attrib a {
+  color: var(--muted);
+}
+
+.place-map .maplibregl-cooperative-gesture-screen {
+  background: rgba(5, 7, 11, 0.68);
   color: var(--ink);
+  backdrop-filter: blur(2px);
+  font-size: 0.85rem;
 }
 
 .place-pin {

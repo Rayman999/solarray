@@ -3,7 +3,8 @@ import { AfterViewInit, Component, computed, effect, ElementRef, HostListener, i
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { gsap } from 'gsap';
-import * as L from 'leaflet';
+import type { Feature, FeatureCollection } from 'geojson';
+import maplibregl from 'maplibre-gl';
 
 import { AuthService } from '../../auth.service';
 import { AchievementDef, CompletionAward, GameService } from '../../game.service';
@@ -106,14 +107,13 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
-    // Module switches re-create the map container; a Leaflet instance bound to the old node must be rebuilt.
+    // Module switches re-create the map container; a map instance bound to the old node must be rebuilt.
     if (this.placeMap && this.placeMapElement !== element.nativeElement) {
       this.placeMap.remove();
       this.placeMap = undefined;
+      this.placeMapReady = false;
       this.placeMarker = undefined;
-      this.placeCircle = undefined;
       this.phoneMarker = undefined;
-      this.phoneAccuracyCircle = undefined;
     }
 
     this.placeMapElement = element.nativeElement;
@@ -166,11 +166,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   private readonly timelines = new Map<MotionKey, gsap.core.Timeline>();
   private scrollFrame = 0;
   private placeMapElement?: HTMLElement;
-  private placeMap?: L.Map;
-  private placeMarker?: L.Marker;
-  private placeCircle?: L.Circle;
-  private phoneMarker?: L.Marker;
-  private phoneAccuracyCircle?: L.Circle;
+  private placeMap?: maplibregl.Map;
+  private placeMapReady = false;
+  private placeMarker?: maplibregl.Marker;
+  private phoneMarker?: maplibregl.Marker;
 
   private readonly syncPhonePositionOnMap = effect(() => {
     const position = this.location.currentPosition();
@@ -604,10 +603,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   private openPlaceFold(): void {
     this.placeFoldOpen.set(true);
-    // Leaflet can't size itself inside a still-folding container; nudge it after the fold settles.
+    // The map can't size itself inside a still-folding container; nudge it after the fold settles.
     window.setTimeout(() => {
       this.ensurePlaceMap();
-      this.placeMap?.invalidateSize();
+      this.placeMap?.resize();
     }, 340);
   }
 
@@ -984,7 +983,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
   setRadius(value: number): void {
     this.radiusMeters.set(Number.isFinite(value) ? value : 250);
-    this.syncPlaceCircle();
+    this.syncRadiusZone();
   }
 
   async searchPlaces(): Promise<void> {
@@ -1056,40 +1055,69 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
 
     if (this.placeMap) {
-      this.placeMap.invalidateSize();
+      this.placeMap.resize();
       return;
     }
 
     const latitude = Number(this.latitude());
     const longitude = Number(this.longitude());
+    const hasPin = this.latitude() !== '' && Number.isFinite(latitude) && Number.isFinite(longitude);
     const currentPosition = this.location.currentPosition();
-    const center: L.LatLngExpression =
-      Number.isFinite(latitude) && Number.isFinite(longitude)
-        ? [latitude, longitude]
-        : currentPosition
-          ? [currentPosition.latitude, currentPosition.longitude]
-          : [-26.2041, 28.0473];
+    const center: [number, number] = hasPin
+      ? [longitude, latitude]
+      : currentPosition
+        ? [currentPosition.longitude, currentPosition.latitude]
+        : [28.0473, -26.2041];
 
-    this.placeMap = L.map(this.placeMapElement, {
-      zoomControl: false,
-      attributionControl: false
-    }).setView(center, Number.isFinite(latitude) && Number.isFinite(longitude) || currentPosition ? 16 : 11);
+    this.placeMap = new maplibregl.Map({
+      container: this.placeMapElement,
+      // A minimal inline style over CARTO's dark raster basemap — no API key, and it matches the observatory palette.
+      style: {
+        version: 8,
+        sources: {
+          basemap: {
+            type: 'raster',
+            tiles: [
+              'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+              'https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'
+            ],
+            tileSize: 256,
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+          }
+        },
+        layers: [{ id: 'basemap', type: 'raster', source: 'basemap' }]
+      },
+      center,
+      zoom: hasPin || currentPosition ? 15 : 10,
+      attributionControl: { compact: true },
+      // One finger scrolls the page, two fingers move the map — the map never traps a scrolling thumb.
+      cooperativeGestures: true,
+      dragRotate: false,
+      pitchWithRotate: false
+    });
+    this.placeMap.touchZoomRotate.disableRotation();
+    this.placeMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+    this.placeMap.on('click', (event) => this.setSelectedPlace(event.lngLat.lat, event.lngLat.lng, 'Pinned place'));
+    this.placeMap.on('load', () => {
+      this.placeMapReady = true;
+      this.placeMap?.addSource('radius-zone', { type: 'geojson', data: emptyFeatureCollection() });
+      this.placeMap?.addLayer({ id: 'radius-zone-fill', type: 'fill', source: 'radius-zone', paint: { 'fill-color': '#f0c987', 'fill-opacity': 0.08 } });
+      this.placeMap?.addLayer({ id: 'radius-zone-line', type: 'line', source: 'radius-zone', paint: { 'line-color': '#f0c987', 'line-opacity': 0.45, 'line-width': 1.2 } });
+      this.placeMap?.addSource('phone-accuracy', { type: 'geojson', data: emptyFeatureCollection() });
+      this.placeMap?.addLayer({ id: 'phone-accuracy-fill', type: 'fill', source: 'phone-accuracy', paint: { 'fill-color': '#93b6a0', 'fill-opacity': 0.08 } });
+      this.placeMap?.addLayer({ id: 'phone-accuracy-line', type: 'line', source: 'phone-accuracy', paint: { 'line-color': '#93b6a0', 'line-opacity': 0.3, 'line-width': 1 } });
+      this.syncRadiusZone();
+      const position = this.location.currentPosition();
+      if (position) {
+        this.syncPhonePosition(position);
+      }
+    });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(this.placeMap);
-    L.control.zoom({ position: 'bottomright' }).addTo(this.placeMap);
-
-    if (currentPosition) {
-      this.syncPhonePosition(currentPosition);
+    if (hasPin) {
+      this.ensureSelectedPlaceMarker(latitude, longitude);
     }
-
-    if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-      this.ensureSelectedPlaceLayer(center);
-    }
-
-    this.placeMap.on('click', (event) => this.setSelectedPlace(event.latlng.lat, event.latlng.lng, 'Pinned place'));
   }
 
   private setSelectedPlace(latitude: number, longitude: number, label: string, zoom?: number): void {
@@ -1097,54 +1125,60 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const position: L.LatLngExpression = [latitude, longitude];
     this.latitude.set(latitude.toFixed(6));
     this.longitude.set(longitude.toFixed(6));
     this.placeLabel.set(label);
     this.ensurePlaceMap();
-    this.ensureSelectedPlaceLayer(position);
-    this.placeMarker?.setLatLng(position);
-    this.placeCircle?.setLatLng(position);
-    this.placeMap?.setView(position, zoom ?? this.placeMap.getZoom(), { animate: !this.reducedMotion() });
+    this.ensureSelectedPlaceMarker(latitude, longitude);
+    this.syncRadiusZone();
+
+    if (this.placeMap) {
+      this.placeMap.easeTo({
+        center: [longitude, latitude],
+        zoom: zoom ?? this.placeMap.getZoom(),
+        duration: this.reducedMotion() ? 0 : 600
+      });
+    }
   }
 
-  private syncPlaceCircle(): void {
+  private syncRadiusZone(): void {
+    if (!this.placeMap || !this.placeMapReady) {
+      return;
+    }
+
+    const source = this.placeMap.getSource('radius-zone') as maplibregl.GeoJSONSource | undefined;
+    if (!source) {
+      return;
+    }
+
     const latitude = Number(this.latitude());
     const longitude = Number(this.longitude());
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (this.latitude() === '' || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      source.setData(emptyFeatureCollection());
       return;
     }
 
-    this.placeCircle?.setLatLng([latitude, longitude]);
-    this.placeCircle?.setRadius(this.radiusMeters());
+    source.setData(circleFeature(latitude, longitude, this.radiusMeters()));
   }
 
-  private ensureSelectedPlaceLayer(position: L.LatLngExpression): void {
-    if (!this.placeMap || this.placeMarker || this.placeCircle) {
+  private ensureSelectedPlaceMarker(latitude: number, longitude: number): void {
+    if (!this.placeMap) {
       return;
     }
 
-    this.placeMarker = L.marker(position, {
-      draggable: true,
-      icon: L.divIcon({
-        className: 'place-pin',
-        html: '<span></span>',
-        iconSize: [26, 26],
-        iconAnchor: [13, 13]
-      })
-    }).addTo(this.placeMap);
-    this.placeCircle = L.circle(position, {
-      radius: this.radiusMeters(),
-      color: '#f0c987',
-      fillColor: '#f0c987',
-      fillOpacity: 0.08,
-      opacity: 0.45,
-      weight: 1
-    }).addTo(this.placeMap);
+    if (this.placeMarker) {
+      this.placeMarker.setLngLat([longitude, latitude]);
+      return;
+    }
+
+    const element = document.createElement('div');
+    element.className = 'place-pin';
+    element.innerHTML = '<span></span>';
+    this.placeMarker = new maplibregl.Marker({ element, draggable: true }).setLngLat([longitude, latitude]).addTo(this.placeMap);
     this.placeMarker.on('dragend', () => {
-      const position = this.placeMarker?.getLatLng();
-      if (position) {
-        this.setSelectedPlace(position.lat, position.lng, 'Pinned place');
+      const lngLat = this.placeMarker?.getLngLat();
+      if (lngLat) {
+        this.setSelectedPlace(lngLat.lat, lngLat.lng, 'Pinned place');
       }
     });
   }
@@ -1154,31 +1188,20 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const latLng: L.LatLngExpression = [position.latitude, position.longitude];
+    const lngLat: [number, number] = [position.longitude, position.latitude];
     if (!this.phoneMarker) {
-      this.phoneMarker = L.marker(latLng, {
-        interactive: false,
-        icon: L.divIcon({
-          className: 'phone-pin',
-          html: '<span></span>',
-          iconSize: [18, 18],
-          iconAnchor: [9, 9]
-        })
-      }).addTo(this.placeMap);
-      this.phoneAccuracyCircle = L.circle(latLng, {
-        radius: Math.max(position.accuracyMeters ?? 25, 20),
-        color: '#93b6a0',
-        fillColor: '#93b6a0',
-        fillOpacity: 0.08,
-        opacity: 0.32,
-        weight: 1
-      }).addTo(this.placeMap);
-      return;
+      const element = document.createElement('div');
+      element.className = 'phone-pin';
+      element.innerHTML = '<span></span>';
+      this.phoneMarker = new maplibregl.Marker({ element }).setLngLat(lngLat).addTo(this.placeMap);
+    } else {
+      this.phoneMarker.setLngLat(lngLat);
     }
 
-    this.phoneMarker.setLatLng(latLng);
-    this.phoneAccuracyCircle?.setLatLng(latLng);
-    this.phoneAccuracyCircle?.setRadius(Math.max(position.accuracyMeters ?? 25, 20));
+    if (this.placeMapReady) {
+      const source = this.placeMap.getSource('phone-accuracy') as maplibregl.GeoJSONSource | undefined;
+      source?.setData(circleFeature(position.latitude, position.longitude, Math.max(position.accuracyMeters ?? 25, 20)));
+    }
   }
 
   private playPageEntryFlow(): void {
@@ -1933,6 +1956,23 @@ const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frida
 
 function formatRadius(meters: number): string {
   return meters >= 1000 ? `${meters % 1000 ? (meters / 1000).toFixed(1) : meters / 1000} km` : `${meters} m`;
+}
+
+function emptyFeatureCollection(): FeatureCollection {
+  return { type: 'FeatureCollection', features: [] };
+}
+
+// MapLibre has no built-in metric circle; approximate one as a 64-point polygon.
+function circleFeature(latitude: number, longitude: number, radiusMeters: number): Feature {
+  const steps = 64;
+  const degLat = radiusMeters / 111_320;
+  const degLng = radiusMeters / (111_320 * Math.cos((latitude * Math.PI) / 180) || 1);
+  const ring: [number, number][] = [];
+  for (let index = 0; index <= steps; index += 1) {
+    const angle = (index / steps) * 2 * Math.PI;
+    ring.push([longitude + Math.cos(angle) * degLng, latitude + Math.sin(angle) * degLat]);
+  }
+  return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [ring] } };
 }
 
 function haversineMeters(

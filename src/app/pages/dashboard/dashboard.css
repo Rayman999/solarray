@@ -1423,6 +1423,76 @@ h1 {
   }
 }
 
+/* ---- Desktop: two-column workbench instead of a stretched phone column ---- */
+
+@media (min-width: 1080px) {
+  .app-shell {
+    width: min(100%, 76rem);
+    padding-top: 1.8rem;
+    padding-inline: 2.5rem;
+  }
+
+  .workbench,
+  .module-content {
+    gap: 1rem;
+  }
+
+  /* Capture lives on the left and stays put; the list breathes on the right. */
+  .module-content {
+    grid-template-columns: minmax(0, 27rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .hud,
+  .notification-panel,
+  .settings-grid {
+    grid-column: 1 / -1;
+  }
+
+  .capture-panel {
+    position: sticky;
+    top: 1rem;
+  }
+
+  .settings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .capture-panel,
+  .task-panel,
+  .today-card,
+  .phone-mode-card {
+    padding: 1.1rem;
+  }
+
+  h1 {
+    font-size: 2.6rem;
+  }
+
+  .place-map {
+    min-height: 22rem;
+  }
+
+  .next-item {
+    min-height: 5.4rem;
+  }
+
+  .place-chip span:nth-child(2) {
+    max-width: 16rem;
+  }
+
+  /* Toasts dock top-right on big screens, like a desktop app. */
+  .toast-stack {
+    left: auto;
+    right: 1.5rem;
+    transform: none;
+  }
+
+  .bottom-nav {
+    bottom: 1.2rem;
+  }
+}
+
 @media (max-width: 420px) {
   .app-shell {
     padding-inline: 0.72rem;
