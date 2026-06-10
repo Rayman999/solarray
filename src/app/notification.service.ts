@@ -1,12 +1,24 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 
 const NOTIFICATION_ICON = '/icons/icon-192.png';
+const NOTIFICATION_HISTORY_KEY = 'solarray.notificationHistory';
+
+export interface AppNotification {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   readonly permission = signal<NotificationPermission>(this.currentPermission());
   readonly status = signal('');
   readonly error = signal('');
+  readonly items = signal<AppNotification[]>(readNotificationHistory());
+  readonly unreadItems = computed(() => this.items().filter((item) => !item.read));
+  readonly unreadCount = computed(() => this.unreadItems().length);
   private readonly registration = this.resolveWorker();
 
   async requestPermission(): Promise<boolean> {
@@ -40,11 +52,13 @@ export class NotificationService {
           icon: NOTIFICATION_ICON,
           badge: NOTIFICATION_ICON
         });
+        this.addToHistory(title, body);
         this.report('Notification sent.', 'success');
         return true;
       }
 
       new Notification(title, { body, icon: NOTIFICATION_ICON });
+      this.addToHistory(title, body);
       this.report('Notification sent.', 'success');
       return true;
     } catch (error) {
@@ -64,6 +78,12 @@ export class NotificationService {
 
   async showTest(): Promise<void> {
     await this.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
+  }
+
+  markAllRead(): void {
+    const updated = this.items().map((item) => ({ ...item, read: true }));
+    this.items.set(updated);
+    writeNotificationHistory(updated);
   }
 
   private currentPermission(): NotificationPermission {
@@ -109,4 +129,55 @@ export class NotificationService {
       })
     );
   }
+
+  private addToHistory(title: string, body: string): void {
+    const item: AppNotification = {
+      id: crypto.randomUUID(),
+      title,
+      body,
+      createdAt: new Date().toISOString(),
+      read: false
+    };
+    const updated = [item, ...this.items()].slice(0, 50);
+    this.items.set(updated);
+    writeNotificationHistory(updated);
+  }
+}
+
+function readNotificationHistory(): AppNotification[] {
+  try {
+    const raw = window.localStorage.getItem(NOTIFICATION_HISTORY_KEY);
+    if (!raw) {
+      return [];
+    }
+
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(isNotificationItem);
+  } catch {
+    return [];
+  }
+}
+
+function writeNotificationHistory(items: AppNotification[]): void {
+  try {
+    window.localStorage.setItem(NOTIFICATION_HISTORY_KEY, JSON.stringify(items));
+  } catch {
+    // Notification history is a convenience layer; native/browser notifications still work.
+  }
+}
+
+function isNotificationItem(value: unknown): value is AppNotification {
+  const item = value as AppNotification | null;
+  return (
+    Boolean(item) &&
+    typeof item?.id === 'string' &&
+    typeof item.title === 'string' &&
+    typeof item.body === 'string' &&
+    typeof item.createdAt === 'string' &&
+    typeof item.read === 'boolean'
+  );
 }

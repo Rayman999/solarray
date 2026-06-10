@@ -7,7 +7,7 @@
     <header class="home-hero" data-entry-card>
       <div>
         <p class="eyebrow brand-mark">Solarray</p>
-        <h1>{{ activeModule() === 'settings' ? 'Settings' : activeModule() === 'reminders' ? 'Places' : 'Today' }}</h1>
+        <h1>{{ activeTitle() }}</h1>
       </div>
       <button class="quiet-button icon-button" type="button" (click)="signOut()" aria-label="Sign out">
         <i class="pi pi-sign-out"></i>
@@ -15,7 +15,7 @@
     </header>
 
     <section #moduleContent class="module-content">
-      @if (activeModule() !== 'settings') {
+      @if (activeModule() !== 'settings' && activeModule() !== 'notifications') {
         <section class="capture-panel" aria-labelledby="capture-title" data-entry-card>
         <form class="capture-form" (ngSubmit)="addReminder()">
           <label id="capture-title" class="capture-title" for="quick-capture">{{ activeModule() === 'reminders' ? 'Place reminder' : 'Add task' }}</label>
@@ -232,6 +232,40 @@
         </section>
       }
 
+      @if (activeModule() === 'notifications') {
+        <section class="notification-panel task-panel" data-entry-card>
+          <div class="panel-heading">
+            <p>Notifications</p>
+            <span>{{ notifications.unreadCount() }} unread</span>
+          </div>
+
+          @if (notifications.unreadItems().length) {
+            <button class="quiet-button notification-clear" type="button" (click)="markNotificationsRead()">
+              <i class="pi pi-check"></i>
+              <span>Mark read</span>
+            </button>
+            <div class="notification-list">
+              @for (item of notifications.unreadItems(); track item.id) {
+                <article>
+                  <i class="pi pi-bell"></i>
+                  <div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.body }}</p>
+                    <time>{{ item.createdAt | date:'EEE, HH:mm' }}</time>
+                  </div>
+                </article>
+              }
+            </div>
+          } @else {
+            <div class="empty-next">
+              <i class="pi pi-inbox"></i>
+              <h3>No unread notifications.</h3>
+              <p>New reminders will show here until you open this tab.</p>
+            </div>
+          }
+        </section>
+      }
+
       @if (activeModule() === 'settings') {
         <section class="settings-grid">
         <section class="phone-mode-card" aria-label="Phone mode" data-entry-card>
@@ -292,6 +326,13 @@
     <button type="button" [class.active]="activeModule() === 'reminders'" (click)="selectModule('reminders')">
       <i class="pi pi-map-marker"></i>
       <span>Places</span>
+    </button>
+    <button type="button" [class.active]="activeModule() === 'notifications'" (click)="selectModule('notifications')">
+      <i class="pi pi-bell"></i>
+      @if (notifications.unreadCount()) {
+        <strong>{{ notifications.unreadCount() }}</strong>
+      }
+      <span>Inbox</span>
     </button>
     <button type="button" [class.active]="activeModule() === 'settings'" (click)="selectModule('settings')">
       <i class="pi pi-cog"></i>

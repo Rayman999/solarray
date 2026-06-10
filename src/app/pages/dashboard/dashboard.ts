@@ -43,7 +43,7 @@ const MOTION = {
 } as const;
 
 type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | 'module' | `task-${string}`;
-type ModuleMode = 'tasks' | 'reminders' | 'settings';
+type ModuleMode = 'tasks' | 'reminders' | 'notifications' | 'settings';
 
 interface PlaceSearchResult {
   display_name: string;
@@ -181,6 +181,18 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly capturePlaceholder = computed(() =>
     this.activeModule() === 'reminders' ? 'What should happen there?' : 'Type it, tap plus, move on'
   );
+  readonly activeTitle = computed(() => {
+    switch (this.activeModule()) {
+      case 'reminders':
+        return 'Places';
+      case 'notifications':
+        return 'Inbox';
+      case 'settings':
+        return 'Settings';
+      default:
+        return 'Today';
+    }
+  });
   readonly diagnosticRows = computed(() => {
     const user = this.auth.user();
 
@@ -250,6 +262,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   onReminderStatus(event: Event): void {
     const detail = (event as CustomEvent<ReminderStatusEvent>).detail;
     if (!detail?.message) {
+      return;
+    }
+
+    if (detail.message === 'Notification sent.') {
       return;
     }
 
@@ -536,6 +552,10 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       await this.notifications.showLocal('Solarray notifications are on', 'Your phone can show reminders from this app.');
     }
     this.playStatusSignalFlow('.phone-mode-card .pi-bell');
+  }
+
+  markNotificationsRead(): void {
+    this.notifications.markAllRead();
   }
 
   async enablePhoneMode(): Promise<void> {
@@ -956,6 +976,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
       // Psychology: object permanence. When Angular reuses a task node, clear the old exit state so the next item visibly takes its place.
       gsap.killTweensOf(replacement);
+      this.resetTaskVisualState(replacement);
       if (promotedFromRect && !this.isLaterItem(replacement)) {
         const nextRect = replacement.getBoundingClientRect();
         const x = promotedFromRect.left - nextRect.left;
@@ -1137,6 +1158,29 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     return !!item.closest('.later-list');
   }
 
+  private resetTaskVisualState(item: HTMLElement): void {
+    const icon = item.querySelector<HTMLElement>('.big-check i, .small-check i');
+    const title = item.querySelector<HTMLElement>('.task-copy h2, .task-copy h3');
+    const ripple = item.querySelector<HTMLElement>('.check-ripple');
+
+    if (icon) {
+      icon.className = 'pi pi-circle';
+      gsap.set(icon, { clearProps: 'color,transform' });
+    }
+
+    if (title) {
+      gsap.set(title, { clearProps: 'textDecorationColor,textDecorationLine' });
+      title.style.textDecorationLine = '';
+      title.style.textDecorationColor = '';
+    }
+
+    if (ripple) {
+      gsap.set(ripple, { autoAlpha: 0, scale: 0.72 });
+    }
+
+    gsap.set(item, { clearProps: 'opacity,visibility,transform,filter,transformOrigin' });
+  }
+
   private replaceTimeline(key: MotionKey): gsap.core.Timeline {
     this.finishTimeline(key);
     const timeline = gsap.timeline({
@@ -1214,7 +1258,7 @@ function readPhoneModePreferred(): boolean {
 }
 
 function moduleIndex(module: ModuleMode): number {
-  return ['tasks', 'reminders', 'settings'].indexOf(module);
+  return ['tasks', 'reminders', 'notifications', 'settings'].indexOf(module);
 }
 
 function supportsScrollTimeline(): boolean {

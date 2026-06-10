@@ -293,7 +293,9 @@ h1 {
 
 .task-copy p,
 .empty-next p,
-.module-status-grid span {
+.module-status-grid span,
+.notification-list p,
+.notification-list time {
   color: var(--muted);
 }
 
@@ -374,22 +376,78 @@ h1 {
   font-weight: 800;
 }
 
+.notification-clear {
+  width: 100%;
+  justify-content: center;
+  margin-bottom: 0.55rem;
+}
+
+.notification-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.notification-list article {
+  display: grid;
+  grid-template-columns: 2.1rem minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: start;
+  border: 1px solid var(--line);
+  border-radius: 0.76rem;
+  background: rgba(255, 255, 255, 0.022);
+  padding: 0.62rem;
+}
+
+.notification-list article > i {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border: 1px solid rgba(240, 201, 135, 0.24);
+  border-radius: 0.62rem;
+  color: var(--accent);
+  background: rgba(240, 201, 135, 0.055);
+}
+
+.notification-list h3 {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.notification-list p {
+  margin-top: 0.12rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.notification-list time {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
 .bottom-nav {
   position: fixed;
   left: 50%;
   bottom: max(0.62rem, env(safe-area-inset-bottom));
   z-index: 15;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.25rem;
-  width: min(21rem, calc(100% - 1.5rem));
-  min-height: 3.55rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.18rem;
+  width: min(22.5rem, calc(100% - 1rem));
+  min-height: 3.25rem;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1rem;
+  border-radius: 0.9rem;
   background: rgba(8, 10, 15, 0.78);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
   backdrop-filter: blur(22px);
-  padding: 0.32rem;
+  padding: 0.24rem;
   transform: translateX(-50%);
   view-transition-name: none;
 }
@@ -398,12 +456,12 @@ h1 {
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 2.85rem;
+  min-height: 2.65rem;
   place-items: center;
   gap: 0.1rem;
   overflow: hidden;
   border: 0;
-  border-radius: 0.78rem;
+  border-radius: 0.68rem;
   background: transparent;
   color: var(--muted);
   font-weight: 800;
@@ -413,9 +471,9 @@ h1 {
 .bottom-nav button::before {
   content: '';
   position: absolute;
-  inset: 0.18rem;
+  inset: 0.14rem;
   border: 1px solid rgba(240, 201, 135, 0.2);
-  border-radius: 0.68rem;
+  border-radius: 0.58rem;
   background: rgba(240, 201, 135, 0.08);
   opacity: 0;
   transform: scale(0.84);
@@ -423,17 +481,39 @@ h1 {
 }
 
 .bottom-nav i,
-.bottom-nav span {
+.bottom-nav span,
+.bottom-nav strong {
   position: relative;
   z-index: 1;
 }
 
 .bottom-nav i {
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .bottom-nav span {
-  font-size: 0.64rem;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 0.58rem;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bottom-nav strong {
+  position: absolute;
+  top: 0.28rem;
+  right: 0.42rem;
+  display: grid;
+  min-width: 0.92rem;
+  height: 0.92rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #17140e;
+  font-size: 0.56rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .bottom-nav button.active {
