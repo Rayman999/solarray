@@ -7,7 +7,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        // Override point for customization after application launch.
+        // When iOS relaunches the app for a geofence entry (after force-quit/reboot), the delegate
+        // must exist at launch for CoreLocation to deliver the region event.
+        GeofenceManager.shared.activate()
         return true
     }
 

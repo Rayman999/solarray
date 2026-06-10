@@ -18,16 +18,20 @@ interface Coordinates {
 const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>('BackgroundGeolocation');
 const NATIVE_WATCHER_KEY = 'solarray.nativeLocationWatcherId';
 const NATIVE_NOTIFIED_KEY = 'solarray.nativeLocationNotifiedIds';
+const PLACE_CHANNEL_ID = 'solarray-places';
+// Re-arm a reminder only once the phone is clearly outside the zone, so GPS jitter at the boundary can't spam.
+const REARM_DISTANCE_FACTOR = 1.5;
 
 @Injectable({ providedIn: 'root' })
 export class NativeLocationService {
   private readonly store = inject(ReminderStore);
-  private watcherId = readString(NATIVE_WATCHER_KEY);
-  private insideLocationIds = new Set<string>();
+  // Watchers do not survive a process restart — this id is only valid for the current app session.
+  private watcherId?: string;
+  private channelReady = false;
   private readonly notifiedLocationIds = new Set(readStringList(NATIVE_NOTIFIED_KEY));
 
   readonly available = signal(Capacitor.isNativePlatform());
-  readonly isWatching = signal(Boolean(this.watcherId));
+  readonly isWatching = signal(false);
   readonly status = signal('');
   readonly error = signal('');
 
@@ -59,7 +63,8 @@ export class NativeLocationService {
       return false;
     }
 
-    if (this.isWatching()) {
+    // Only trust a watcher created by this process — a persisted id from a previous run is dead.
+    if (this.watcherId) {
       return true;
     }
 
@@ -68,6 +73,8 @@ export class NativeLocationService {
       this.error.set('Native notification permission is needed for place reminders.');
       return false;
     }
+
+    await this.ensureNotificationChannel();
 
     try {
       const watcherId = await BackgroundGeolocation.addWatcher(
@@ -87,7 +94,8 @@ export class NativeLocationService {
       this.isWatching.set(true);
       this.error.set('');
       this.status.set('Native background location armed.');
-      writeString(NATIVE_WATCHER_KEY, watcherId);
+      // The stored value is an "armed" flag for the next launch, not a reusable watcher handle.
+      writeString(NATIVE_WATCHER_KEY, '1');
       return true;
     } catch (error) {
       const message = errorMessage(error, 'Could not start native background location.');
@@ -101,7 +109,6 @@ export class NativeLocationService {
     const watcherId = this.watcherId;
     this.watcherId = undefined;
     this.isWatching.set(false);
-    this.insideLocationIds.clear();
 
     if (remember) {
       removeString(NATIVE_WATCHER_KEY);
@@ -132,12 +139,14 @@ export class NativeLocationService {
       return false;
     }
 
+    await this.ensureNotificationChannel();
     await LocalNotifications.schedule({
       notifications: [
         {
           id: notificationIdFromReminderId('solarray-test'),
           title: 'Solarray notifications are on',
-          body: 'Native reminders can alert you from the installed app.'
+          body: 'Native reminders can alert you from the installed app.',
+          channelId: PLACE_CHANNEL_ID
         }
       ]
     });
@@ -170,30 +179,32 @@ export class NativeLocationService {
   }
 
   private async notifyNearby(position: Coordinates): Promise<void> {
-    const nearbyIds = new Set<string>();
+    let notifiedChanged = false;
 
     for (const reminder of this.store.locationReminders()) {
       if (!reminder.location) {
         continue;
       }
 
-      const isNearby = distanceInMeters(position, reminder.location) <= reminder.location.radiusMeters;
-      if (!isNearby) {
-        continue;
-      }
+      const distance = distanceInMeters(position, reminder.location);
+      const radius = reminder.location.radiusMeters;
 
-      nearbyIds.add(reminder.id);
-      if (this.insideLocationIds.has(reminder.id) || this.notifiedLocationIds.has(reminder.id)) {
-        continue;
+      if (distance <= radius) {
+        if (!this.notifiedLocationIds.has(reminder.id)) {
+          this.notifiedLocationIds.add(reminder.id);
+          notifiedChanged = true;
+          await this.notifyReminder(reminder);
+        }
+      } else if (distance > radius * REARM_DISTANCE_FACTOR && this.notifiedLocationIds.has(reminder.id)) {
+        // Clearly left the zone — arm the reminder again so the next arrival pings too.
+        this.notifiedLocationIds.delete(reminder.id);
+        notifiedChanged = true;
       }
-
-      this.insideLocationIds.add(reminder.id);
-      this.notifiedLocationIds.add(reminder.id);
-      this.persistNotifiedIds();
-      await this.notifyReminder(reminder);
     }
 
-    this.insideLocationIds = nearbyIds;
+    if (notifiedChanged) {
+      this.persistNotifiedIds();
+    }
   }
 
   private async notifyReminder(reminder: Reminder): Promise<void> {
@@ -203,6 +214,7 @@ export class NativeLocationService {
           id: notificationIdFromReminderId(reminder.id),
           title: reminder.title,
           body: reminder.location ? `You are near ${reminder.location.label}.` : reminder.notes || 'You are near this reminder.',
+          channelId: PLACE_CHANNEL_ID,
           extra: {
             reminderId: reminder.id
           }
@@ -210,6 +222,27 @@ export class NativeLocationService {
       ]
     });
     this.status.set('Place reminder notification sent.');
+  }
+
+  // Android 8+ routes notification behavior through channels; high importance makes arrivals pop heads-up with sound.
+  private async ensureNotificationChannel(): Promise<void> {
+    if (this.channelReady || Capacitor.getPlatform() !== 'android') {
+      return;
+    }
+
+    try {
+      await LocalNotifications.createChannel({
+        id: PLACE_CHANNEL_ID,
+        name: 'Place reminders',
+        description: 'Alerts when you arrive at a saved place.',
+        importance: 5,
+        visibility: 1,
+        vibration: true
+      });
+      this.channelReady = true;
+    } catch {
+      // Channel creation can fail on non-Android platforms pretending otherwise; notifications still work on default channel.
+    }
   }
 
   private async requestNotificationPermission(): Promise<boolean> {
