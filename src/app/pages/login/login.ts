@@ -39,7 +39,8 @@ export class Login {
     try {
       await this.auth.login(this.email(), this.password());
       this.status.set('success');
-      setTimeout(() => this.router.navigateByUrl('/'), 650);
+      // Long enough for the warp-out animation to carry the card into the black hole before the route glides.
+      setTimeout(() => this.router.navigateByUrl('/'), 950);
     } catch (error) {
       this.status.set('error');
       this.errorMessage.set(authErrorMessage(error));

@@ -6,6 +6,7 @@ import { gsap } from 'gsap';
 import * as L from 'leaflet';
 
 import { AuthService } from '../../auth.service';
+import { AchievementDef, CompletionAward, GameService } from '../../game.service';
 import { LocationReminderService } from '../../location-reminder.service';
 import { NativeLocationService } from '../../native-location.service';
 import { NotificationService } from '../../notification.service';
@@ -27,10 +28,11 @@ const MOTION = {
   moduleEnterDuration: 0.34,
   nextPulseDuration: 0.3,
   checkFillDuration: 0.15,
+  checkPopDuration: 0.24,
   checkRippleDuration: 0.3,
   strikethroughDuration: 0.15,
   completionPause: 0.08,
-  completeExitDuration: 0.2,
+  completeExitDuration: 0.26,
   deleteExitDuration: 0.18,
   detailsOpenDuration: 0.25,
   detailsFadeDuration: 0.15,
@@ -42,7 +44,7 @@ const MOTION = {
   spring: 'back.out(2)'
 } as const;
 
-type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | 'module' | `task-${string}`;
+type MotionKey = 'pageEntry' | 'capture' | 'taskEntry' | 'details' | 'status' | 'counter' | 'openCount' | 'points' | 'module' | `task-${string}`;
 type ModuleMode = 'tasks' | 'reminders' | 'notifications' | 'settings';
 
 interface PlaceSearchResult {
@@ -50,6 +52,27 @@ interface PlaceSearchResult {
   lat: string;
   lon: string;
 }
+
+interface ParsedTime {
+  date: Date;
+  phrase: string;
+}
+
+type DuePresetId = 'hour' | 'evening' | 'tomorrow' | 'weekend';
+
+const DUE_PRESETS: { id: DuePresetId; icon: string; label: string }[] = [
+  { id: 'hour', icon: 'pi-forward', label: 'In an hour' },
+  { id: 'evening', icon: 'pi-moon', label: 'This evening' },
+  { id: 'tomorrow', icon: 'pi-sun', label: 'Tomorrow morning' },
+  { id: 'weekend', icon: 'pi-calendar', label: 'Weekend' }
+];
+
+const KIND_META: Record<ReminderKind, { icon: string; label: string }> = {
+  todo: { icon: 'pi-check-circle', label: 'Task' },
+  habit: { icon: 'pi-refresh', label: 'Habit' },
+  note: { icon: 'pi-book', label: 'Note' },
+  location: { icon: 'pi-map-marker', label: 'Place' }
+};
 
 interface ReminderStatusEvent {
   tone: 'success' | 'error';
@@ -70,6 +93,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly notifications = inject(NotificationService);
   readonly location = inject(LocationReminderService);
   readonly nativeLocation = inject(NativeLocationService);
+  readonly game = inject(GameService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
@@ -82,12 +106,28 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
+    // Module switches re-create the map container; a Leaflet instance bound to the old node must be rebuilt.
+    if (this.placeMap && this.placeMapElement !== element.nativeElement) {
+      this.placeMap.remove();
+      this.placeMap = undefined;
+      this.placeMarker = undefined;
+      this.placeCircle = undefined;
+      this.phoneMarker = undefined;
+      this.phoneAccuracyCircle = undefined;
+    }
+
     this.placeMapElement = element.nativeElement;
     window.requestAnimationFrame(() => this.ensurePlaceMap());
   }
 
   readonly detailsOpen = signal(false);
   readonly detailsRendered = signal(false);
+  readonly noteOpen = signal(false);
+  readonly placeFoldOpen = signal(false);
+  readonly timeMenuOpen = signal(false);
+  // True once the user picks a time by hand — natural-language detection then stops overriding it.
+  readonly manualTimeSet = signal(false);
+  readonly parsedTime = signal<ParsedTime | null>(null);
   readonly title = signal('');
   readonly notes = signal('');
   readonly kind = signal<ReminderKind>('todo');
@@ -117,6 +157,11 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   readonly scrollProgress = signal(0);
   readonly scrollProgressTransform = computed(() => `scaleX(${this.reducedMotion() ? 0 : this.scrollProgress()})`);
   readonly displayedCompletionRate = signal(0);
+  // The on-screen stardust total lags the real total so the odometer can roll up after the chip lands.
+  readonly displayedPoints = signal(this.game.totalPoints());
+  readonly achievementToasts = signal<{ key: number; def: AchievementDef }[]>([]);
+  readonly levelUpInfo = signal<{ level: number; rank: string } | null>(null);
+  private toastSequence = 0;
 
   private readonly timelines = new Map<MotionKey, gsap.core.Timeline>();
   private scrollFrame = 0;
@@ -179,6 +224,22 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   });
   // Psychology: cognitive load reduction. Show only a short secondary queue so the user never has to scan the full backlog on mobile.
   readonly laterReminders = computed(() => this.todayReminders().slice(1, 4));
+  // Psychology: Zeigarnik relief. Acknowledge the rest of the backlog in one calm line instead of rendering it.
+  readonly restingCount = computed(() => Math.max(0, this.openTaskReminders().length - 1 - this.laterReminders().length));
+  // Psychology: micro-win reward. "All done" is only true when tasks existed and were finished, never faked for an empty list.
+  readonly allTasksDone = computed(() => this.taskReminders().length > 0 && this.openTaskReminders().length === 0);
+  // Psychology: gentle variable reward. The phrase shifts day to day, a small delight without gambling-style uncertainty.
+  readonly allClearPhrase = computed(() => {
+    const phrases = [
+      'Everything is handled. Enjoy the quiet.',
+      'Nothing waiting on you right now.',
+      'Future you says thanks.',
+      'The day is yours again.',
+      'All loops closed. Breathe easy.'
+    ];
+    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000);
+    return phrases[dayOfYear % phrases.length];
+  });
   readonly captureTitle = computed(() => {
     if (this.editingId()) {
       return 'Editing';
@@ -187,8 +248,47 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     return this.activeModule() === 'reminders' ? 'One place to remember' : 'One thing to do';
   });
   readonly capturePlaceholder = computed(() =>
-    this.activeModule() === 'reminders' ? 'What should happen there?' : 'Type it, tap plus, move on'
+    this.activeModule() === 'reminders' ? 'What should happen there?' : 'Try: gym tomorrow at 7am'
   );
+  readonly kindMeta = computed(() => KIND_META[this.kind()]);
+  readonly watchActive = computed(() => this.location.isWatching() || this.nativeLocation.isWatching());
+  readonly hasSelectedPlace = computed(() => Number.isFinite(Number(this.latitude())) && this.latitude() !== '' && this.longitude() !== '');
+  readonly placeChipLabel = computed(() => (this.hasSelectedPlace() ? this.placeLabel() || 'Pinned place' : 'Pick place'));
+  readonly radiusChipLabel = computed(() => formatRadius(this.radiusMeters()));
+  // Live distances from the phone to every place reminder — the heart of "ping me when I'm there".
+  readonly placeDistances = computed(() => {
+    const position = this.location.currentPosition();
+    const distances = new Map<string, number>();
+    if (!position) {
+      return distances;
+    }
+    for (const reminder of this.reminderReminders()) {
+      if (reminder.location) {
+        distances.set(reminder.id, haversineMeters(position, reminder.location));
+      }
+    }
+    return distances;
+  });
+  readonly nearestPlaceReminder = computed(() => {
+    const queue = this.locationQueue();
+    if (!queue.length) {
+      return undefined;
+    }
+    const distances = this.placeDistances();
+    if (!distances.size) {
+      return queue[0];
+    }
+    return [...queue].sort((a, b) => (distances.get(a.id) ?? Infinity) - (distances.get(b.id) ?? Infinity))[0];
+  });
+  readonly otherPlaceReminders = computed(() => this.locationQueue().filter((reminder) => reminder.id !== this.nearestPlaceReminder()?.id));
+  readonly autoTimeActive = computed(() => !!this.parsedTime() && !this.manualTimeSet());
+  readonly effectiveDueLabel = computed(() => {
+    const parsed = this.parsedTime();
+    if (parsed && !this.manualTimeSet()) {
+      return friendlyDueLabel(parsed.date);
+    }
+    return friendlyDueLabel(new Date(this.dueAt()));
+  });
   readonly activeTitle = computed(() => {
     switch (this.activeModule()) {
       case 'reminders':
@@ -281,6 +381,18 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.saveStatus.set(detail.message);
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: Event): void {
+    if (!this.timeMenuOpen()) {
+      return;
+    }
+
+    const target = event.target as HTMLElement | null;
+    if (target && !target.closest('.time-menu') && !target.closest('.time-chip')) {
+      this.timeMenuOpen.set(false);
+    }
+  }
+
   @HostListener('window:error', ['$event'])
   onWindowError(event: ErrorEvent): void {
     this.reportRuntimeProblem(event.message || 'A browser error happened.');
@@ -301,20 +413,39 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const editingReminder = this.editingId()
       ? this.store.reminders().find((candidate) => candidate.id === this.editingId())
       : undefined;
-    const reminderTitle = this.title().trim();
-    const latitude = Number(this.latitude());
-    const longitude = Number(this.longitude());
+    let reminderTitle = this.title().trim();
+    let dueDate = new Date(this.dueAt());
+    const parsed = this.parsedTime();
+    if (parsed && !this.manualTimeSet() && this.activeModule() === 'tasks' && !editingReminder) {
+      // The detected phrase becomes the due time and leaves the title: "call mom tomorrow at 6pm" → "call mom".
+      dueDate = parsed.date;
+      const stripped = stripTimePhrase(reminderTitle, parsed.phrase);
+      if (stripped) {
+        reminderTitle = stripped;
+      }
+    }
+    // Number('') is 0, which would silently pass as a pin in the Atlantic — treat empty as no pin.
+    const latitude = this.latitude() === '' ? NaN : Number(this.latitude());
+    const longitude = this.longitude() === '' ? NaN : Number(this.longitude());
     if (this.activeModule() === 'reminders') {
       this.kind.set('location');
     }
     const hasLocation = this.kind() === 'location' && Number.isFinite(latitude) && Number.isFinite(longitude);
+
+    // A place reminder without a pin can never fire — stop and show the map instead of saving it silently.
+    if (this.activeModule() === 'reminders' && !hasLocation) {
+      this.saveStatusTone.set('error');
+      this.saveStatus.set('Pick a place on the map first.');
+      this.openPlaceFold();
+      return;
+    }
 
     const reminder: Reminder = {
       id: editingReminder?.id ?? crypto.randomUUID(),
       title: reminderTitle,
       notes: this.notes().trim(),
       kind: this.kind(),
-      dueAt: new Date(this.dueAt()).toISOString(),
+      dueAt: dueDate.toISOString(),
       completed: editingReminder?.completed ?? false,
       createdAt: editingReminder?.createdAt ?? new Date().toISOString(),
       location: hasLocation
@@ -346,14 +477,22 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     if (!editingReminder) {
       this.playTaskEntryFlow(reminder.id);
     }
-    this.saveStatusTone.set('success');
-    this.saveStatus.set(editingReminder ? 'Changes saved.' : 'Reminder added.');
-    window.setTimeout(() => {
-      if (this.saveStatus() === 'Changes saved.' || this.saveStatus() === 'Reminder added.') {
-        this.saveStatus.set('');
-      }
-    }, 2_000);
-    void this.notifications.showLocal(editingReminder ? 'Reminder updated' : 'Reminder saved', reminderTitle || 'Your reminder is ready.');
+
+    // Rapid-fire capture: focus snaps back so the next thought can land immediately.
+    if (this.activeModule() === 'tasks') {
+      window.requestAnimationFrame(() => this.quickCapture?.nativeElement.focus());
+    }
+
+    // The landing animation already confirms the add; only edits need a written receipt.
+    if (editingReminder) {
+      this.saveStatusTone.set('success');
+      this.saveStatus.set('Changes saved.');
+      window.setTimeout(() => {
+        if (this.saveStatus() === 'Changes saved.') {
+          this.saveStatus.set('');
+        }
+      }, 2_000);
+    }
   }
 
   toggleDiagnostics(): void {
@@ -397,15 +536,19 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       .add(() => {
         this.applySelectedModule(module);
         window.requestAnimationFrame(() => {
+          gsap.set(content, { clearProps: 'transform,opacity,visibility,filter' });
+          // Cards cascade in one after another, so the new module assembles rather than slides in as a slab.
+          const cards = Array.from(content.children) as HTMLElement[];
           gsap.fromTo(
-            content,
-            { autoAlpha: 0, x: 16 * direction, filter: 'blur(8px)' },
+            cards,
+            { autoAlpha: 0, x: 22 * direction, filter: 'blur(8px)' },
             {
               autoAlpha: 1,
               x: 0,
               filter: 'blur(0px)',
               duration: MOTION.moduleEnterDuration,
               ease: MOTION.easeOut,
+              stagger: 0.055,
               clearProps: 'transform,opacity,visibility,filter'
             }
           );
@@ -422,6 +565,104 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.openDetailsFlow();
   }
 
+  onTitleChange(value: string): void {
+    this.title.set(value);
+    // Psychology: zero-decision capture. The app reads "tomorrow at 6pm" out of the sentence instead of asking for a form.
+    if (this.activeModule() === 'tasks') {
+      this.parsedTime.set(parseNaturalTime(value));
+    }
+  }
+
+  toggleTimeMenu(): void {
+    this.timeMenuOpen.update((open) => !open);
+  }
+
+  toggleNote(): void {
+    this.noteOpen.update((open) => !open);
+  }
+
+  cycleKind(event: Event): void {
+    const order: ReminderKind[] = ['todo', 'habit', 'note'];
+    const next = order[(order.indexOf(this.kind()) + 1) % order.length];
+    this.kind.set(next);
+
+    if (!this.reducedMotion()) {
+      const icon = (event.currentTarget as HTMLElement | null)?.querySelector('i');
+      if (icon) {
+        gsap.fromTo(icon, { scale: 0.4, rotation: -90 }, { scale: 1, rotation: 0, duration: 0.35, ease: MOTION.spring, clearProps: 'transform' });
+      }
+    }
+  }
+
+  togglePlaceFold(): void {
+    if (this.placeFoldOpen()) {
+      this.placeFoldOpen.set(false);
+      return;
+    }
+    this.openPlaceFold();
+  }
+
+  private openPlaceFold(): void {
+    this.placeFoldOpen.set(true);
+    // Leaflet can't size itself inside a still-folding container; nudge it after the fold settles.
+    window.setTimeout(() => {
+      this.ensurePlaceMap();
+      this.placeMap?.invalidateSize();
+    }, 340);
+  }
+
+  cycleRadius(event: Event): void {
+    const presets = [100, 250, 500, 1000];
+    const next = presets[(presets.indexOf(this.radiusMeters()) + 1) % presets.length];
+    this.setRadius(next);
+
+    if (!this.reducedMotion()) {
+      const icon = (event.currentTarget as HTMLElement | null)?.querySelector('i');
+      if (icon) {
+        gsap.fromTo(icon, { scale: 0.4 }, { scale: 1, duration: 0.35, ease: MOTION.spring, clearProps: 'transform' });
+      }
+    }
+  }
+
+  placeDistanceLabel(reminder: Reminder): string {
+    const distance = this.placeDistances().get(reminder.id);
+    if (distance === undefined) {
+      return this.watchActive() ? 'Locating…' : 'Watching paused';
+    }
+
+    const radius = reminder.location?.radiusMeters ?? this.radiusMeters();
+    if (distance <= radius) {
+      return 'In the zone';
+    }
+    return distance < 1000 ? `${Math.round(distance)} m away` : `${(distance / 1000).toFixed(1)} km away`;
+  }
+
+  isInsideZone(reminder: Reminder): boolean {
+    const distance = this.placeDistances().get(reminder.id);
+    if (distance === undefined) {
+      return false;
+    }
+    return distance <= (reminder.location?.radiusMeters ?? this.radiusMeters());
+  }
+
+  duePresetOptions(): { id: DuePresetId; icon: string; label: string; hint: string }[] {
+    return DUE_PRESETS.map((preset) => ({ ...preset, hint: friendlyDueLabel(duePresetDate(preset.id)) }));
+  }
+
+  applyDuePreset(id: DuePresetId): void {
+    this.dueAt.set(toLocalInputValue(duePresetDate(id)));
+    this.manualTimeSet.set(true);
+    this.timeMenuOpen.set(false);
+  }
+
+  setManualDue(value: string): void {
+    if (!value) {
+      return;
+    }
+    this.dueAt.set(value);
+    this.manualTimeSet.set(true);
+  }
+
   setKind(kind: ReminderKind): void {
     // Psychology: friction reduction. Selecting a type should not force another panel transition or extra decision.
     this.kind.set(kind);
@@ -435,11 +676,25 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       this.closeTaskDetails();
     }
 
+    // Psychology: multisensory reward. A single soft haptic tap pairs the visual win with touch on phones.
+    try {
+      navigator.vibrate?.(12);
+    } catch {
+      // Haptics are a bonus, never a requirement.
+    }
+
     if (this.reducedMotion()) {
       const reminder = this.store.reminders().find((candidate) => candidate.id === id);
       void this.store.toggle(id);
       if (reminder && !reminder.completed) {
         void this.notifications.showLocal('Task completed', reminder.title);
+        const award = this.game.recordCompletion(reminder);
+        this.displayedPoints.set(award.totalPoints);
+        this.enqueueAchievements(award.unlocked);
+        if (award.leveledUp) {
+          this.showLevelUp(award.level, award.rank);
+        }
+        this.checkDayCleared();
       }
       this.playProgressCounterFlow();
       return;
@@ -493,14 +748,23 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.placeResults.set([]);
     this.placeSearchError.set('');
 
-    if (!this.detailsOpen()) {
-      this.openDetailsFlow();
-    }
+    this.openPlaceFold();
 
     window.requestAnimationFrame(() => {
       this.quickCapture?.nativeElement.focus();
       if (reminder.location) {
         this.setSelectedPlace(reminder.location.latitude, reminder.location.longitude, reminder.location.label, 16);
+      }
+
+      // Walk the eye to where editing happens: scroll up and pulse the capture panel once.
+      const panel = document.querySelector<HTMLElement>('.capture-panel');
+      panel?.scrollIntoView({ behavior: this.reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      if (panel && !this.reducedMotion()) {
+        gsap.fromTo(
+          panel,
+          { boxShadow: '0 0 0 1px rgba(240, 201, 135, 0.5), 0 0 26px rgba(240, 201, 135, 0.22)' },
+          { boxShadow: '0 0 0 0px rgba(240, 201, 135, 0)', duration: 1.1, ease: 'power2.out', clearProps: 'boxShadow' }
+        );
       }
     });
   }
@@ -522,10 +786,29 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   closeTaskDetails(): void {
-    this.detailModalId.set(null);
-    this.detailTitle.set('');
-    this.detailNotes.set('');
-    this.detailDueAt.set(toLocalInputValue(new Date()));
+    const finish = () => {
+      this.detailModalId.set(null);
+      this.detailTitle.set('');
+      this.detailNotes.set('');
+      this.detailDueAt.set(toLocalInputValue(new Date()));
+    };
+
+    if (this.reducedMotion()) {
+      finish();
+      return;
+    }
+
+    const backdrop = document.querySelector<HTMLElement>('.task-modal-backdrop');
+    const modal = document.querySelector<HTMLElement>('.task-modal');
+    if (!backdrop || !modal) {
+      finish();
+      return;
+    }
+
+    // The dialog settles back down before it leaves, mirroring how it arrived.
+    const closeTimeline = gsap.timeline({ onComplete: finish });
+    closeTimeline.to(modal, { y: 12, scale: 0.96, autoAlpha: 0, duration: 0.18, ease: 'power2.in' }, 0);
+    closeTimeline.to(backdrop, { autoAlpha: 0, duration: 0.2, ease: 'power1.in' }, 0.04);
   }
 
   saveTaskDetails(): void {
@@ -549,6 +832,28 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       }
     }, 2_000);
     this.closeTaskDetails();
+    this.pulseTaskRow(reminder.id);
+  }
+
+  // After an edit lands, the row glows once so the eye finds where the change went.
+  private pulseTaskRow(id: string): void {
+    if (this.reducedMotion()) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      const item = this.taskItem(id);
+      if (!item) {
+        return;
+      }
+
+      gsap.set(item, { transition: 'none' });
+      gsap.fromTo(
+        item,
+        { boxShadow: '0 0 0 1px rgba(240, 201, 135, 0.55), 0 0 24px rgba(240, 201, 135, 0.28)' },
+        { boxShadow: '0 0 0 0px rgba(240, 201, 135, 0)', duration: 0.9, ease: 'power2.out', clearProps: 'boxShadow,transition' }
+      );
+    }, 300);
   }
 
   async signOut(): Promise<void> {
@@ -618,7 +923,26 @@ export class Dashboard implements AfterViewInit, OnDestroy {
   }
 
   markNotificationsRead(): void {
-    this.notifications.markAllRead();
+    if (this.reducedMotion()) {
+      this.notifications.markAllRead();
+      return;
+    }
+
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('.notification-list article'));
+    if (!rows.length) {
+      this.notifications.markAllRead();
+      return;
+    }
+
+    // The inbox sweeps clean: rows leave one after another before the list empties.
+    gsap.to(rows, {
+      autoAlpha: 0,
+      x: 16,
+      duration: 0.18,
+      stagger: 0.05,
+      ease: 'power1.in',
+      onComplete: () => this.notifications.markAllRead()
+    });
   }
 
   async enablePhoneMode(): Promise<void> {
@@ -710,6 +1034,12 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     this.editingId.set(null);
     this.title.set('');
     this.notes.set('');
+    this.noteOpen.set(false);
+    this.timeMenuOpen.set(false);
+    this.placeFoldOpen.set(false);
+    this.parsedTime.set(null);
+    this.manualTimeSet.set(false);
+    this.dueAt.set(toLocalInputValue(new Date(Date.now() + 1000 * 60 * 60)));
     this.placeLabel.set('');
     this.placeSearch.set('');
     this.placeResults.set([]);
@@ -913,6 +1243,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
       const taskEntryTimeline = this.replaceTimeline('taskEntry');
       const isLater = this.isLaterItem(item);
+      gsap.set(item, { transition: 'none' });
       // Psychology: object permanence. The new task lands from above at its final x position, avoiding sideways drift.
       // Later items settle in with a slight scale-up rather than a long travel, matching their quieter role in the list.
       taskEntryTimeline.fromTo(
@@ -935,6 +1266,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       // Psychology: landing confirmation. The Next Up card breathes once so the user knows where the thought went.
       taskEntryTimeline.to(nextCard, { scale: 1.015, duration: MOTION.nextPulseDuration / 2, ease: MOTION.easeOut }, 0);
       taskEntryTimeline.to(nextCard, { scale: 1, duration: MOTION.nextPulseDuration / 2, ease: MOTION.easeOut }, MOTION.nextPulseDuration / 2);
+      this.playOpenCountFlow();
     });
   }
 
@@ -958,7 +1290,15 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const isLater = this.isLaterItem(item);
     const promotedFromRect = isLater ? undefined : this.promotedCandidateRect();
     const durationScale = isLater ? 0.8 : 1;
+    const fillDuration = MOTION.checkFillDuration * durationScale;
+    // Score the win up front: the burst needs to know whether this is a critical "stellar strike" before it fires.
+    const reminderForAward = this.store.reminders().find((candidate) => candidate.id === id);
+    const award = reminderForAward && !reminderForAward.completed ? this.game.recordCompletion(reminderForAward) : null;
+    // The item leaves the DOM before the celebration lands, so capture where the chip should launch from now.
+    const originRect = check.getBoundingClientRect();
     const completionTimeline = this.replaceTimeline(key);
+    // CSS hover transitions on these elements would lag behind GSAP's per-frame updates, so they go quiet during the flow.
+    gsap.set([item, check, icon], { transition: 'none' });
     gsap.set(title, { textDecorationLine: 'line-through', textDecorationColor: 'transparent' });
     completionTimeline.add(() => {
       icon.className = 'pi pi-check';
@@ -970,8 +1310,31 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       completionTimeline.to(item, { scale: 1, duration: MOTION.laterRowSettleDuration, ease: MOTION.easeOut }, MOTION.laterRowSettleDuration);
     }
 
-    // Psychology: micro-win confirmation. The check fills first so the user sees the command was accepted.
-    completionTimeline.to(icon, { color: 'var(--accent)', duration: MOTION.checkFillDuration * durationScale, ease: MOTION.easeOut });
+    // Psychology: micro-win confirmation. The orbit floods with amber the instant it is tapped — the command was heard.
+    completionTimeline.to(
+      check,
+      {
+        backgroundColor: '#f0c987',
+        borderColor: 'rgba(240, 201, 135, 0.95)',
+        boxShadow: '0 0 18px rgba(240, 201, 135, 0.4)',
+        scale: 1.16,
+        duration: fillDuration,
+        ease: MOTION.easeOut
+      },
+      0
+    );
+    completionTimeline.to(icon, { color: '#1c1408', duration: fillDuration, ease: MOTION.easeOut }, 0);
+    // Variable-intensity delight. Stardust scatters from the closed orbit — a crit goes loud, with flash, shake, and a richer storm.
+    completionTimeline.add(() => {
+      this.spawnCompletionBurst(check, { intensity: isLater ? 0.7 : 1, crit: !!award?.crit });
+      if (award?.crit) {
+        this.playCritImpact();
+      }
+      if (award && (award.crit || award.comboChain > 1)) {
+        this.spawnFloatingLabel(originRect, award.crit ? 'Stellar strike ×3' : `Combo ×${formatMultiplier(award.comboMultiplier)}`, award.crit);
+      }
+    }, fillDuration);
+    completionTimeline.to(check, { scale: 1, duration: MOTION.checkPopDuration * durationScale, ease: MOTION.spring }, fillDuration);
     // Psychology: immediate reward. A ripple expands from the touch target without moving surrounding layout.
     completionTimeline.fromTo(
       ripple,
@@ -980,12 +1343,14 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       0
     );
     // Psychology: closure. The text strike lets the user briefly see the open loop resolved before removal.
-    completionTimeline.to(title, { textDecorationColor: 'var(--accent)', duration: MOTION.strikethroughDuration * durationScale, ease: MOTION.easeOut }, '>');
+    completionTimeline.to(title, { textDecorationColor: 'var(--accent)', duration: MOTION.strikethroughDuration * durationScale, ease: MOTION.easeOut }, fillDuration);
     completionTimeline.to({}, { duration: MOTION.completionPause * durationScale });
-    // Psychology: Zeigarnik relief. The finished item leaves upward after the reward moment is visible.
+    // Psychology: Zeigarnik relief. The finished item drifts up and dissolves, released into space rather than deleted.
     completionTimeline.to(item, {
       autoAlpha: 0,
-      y: -8,
+      y: -14,
+      scale: 0.97,
+      filter: 'blur(2px)',
       duration: MOTION.completeExitDuration * durationScale,
       ease: MOTION.easeOut
     });
@@ -997,7 +1362,12 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       }
       this.completingId.set(null);
       this.playProgressCounterFlow();
+      this.playOpenCountFlow();
       this.revealReplacementTask(id, promotedFromRect);
+      if (award) {
+        this.celebrateAward(award, originRect);
+      }
+      this.checkDayCleared();
     });
   }
 
@@ -1011,6 +1381,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const deletionTimeline = this.replaceTimeline(key);
     const isLater = this.isLaterItem(item);
 
+    gsap.set(item, { transition: 'none' });
     // Psychology: clean removal. Delete is quiet and functional, so it fades away without celebration.
     // Later rows dissolve in place with a slight shrink rather than sliding, keeping the quieter list visually settled.
     deletionTimeline.to(item, {
@@ -1022,6 +1393,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     });
     deletionTimeline.add(() => {
       void this.store.remove(id);
+      this.playOpenCountFlow();
       this.revealReplacementTask(id);
     });
   }
@@ -1040,6 +1412,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       // Psychology: object permanence. When Angular reuses a task node, clear the old exit state so the next item visibly takes its place.
       gsap.killTweensOf(replacement);
       this.resetTaskVisualState(replacement);
+      gsap.set(replacement, { transition: 'none' });
       if (promotedFromRect && !this.isLaterItem(replacement)) {
         const nextRect = replacement.getBoundingClientRect();
         const x = promotedFromRect.left - nextRect.left;
@@ -1067,7 +1440,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
             filter: 'blur(0px)',
             duration: MOTION.promotedTaskDuration,
             ease: 'power3.out',
-            clearProps: 'transform,opacity,visibility,filter,transformOrigin'
+            clearProps: 'transform,opacity,visibility,filter,transformOrigin,transition'
           }
         );
         return;
@@ -1081,7 +1454,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
           y: 0,
           duration: this.isLaterItem(replacement) ? MOTION.laterTaskEntryDuration : MOTION.newTaskEntryDuration,
           ease: MOTION.easeOut,
-          clearProps: 'transform,opacity,visibility'
+          clearProps: 'transform,opacity,visibility,transition'
         }
       );
     });
@@ -1149,6 +1522,253 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     }
 
     this.closeDetailsFlow();
+  }
+
+  // The reward moment. Stardust scatters from the closed orbit — particles live on document.body, so their
+  // styles are global (src/styles.css), bypassing Angular's scoped component styles.
+  private spawnCompletionBurst(origin: HTMLElement, options: { intensity?: number; crit?: boolean } = {}): void {
+    if (this.reducedMotion()) {
+      return;
+    }
+
+    const intensity = options.intensity ?? 1;
+    const crit = options.crit ?? false;
+    const rect = origin.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const particleCount = crit ? 26 : Math.round(12 * intensity);
+    const reach = crit ? 1.7 : intensity;
+
+    for (let index = 0; index < particleCount; index += 1) {
+      const particle = document.createElement('span');
+      // On a crit, every third mote burns white-hot.
+      particle.className = crit && index % 3 === 0 ? 'completion-star white' : 'completion-star';
+      const size = gsap.utils.random(2, crit ? 5.5 : 4.5);
+      particle.style.width = `${size}px`;
+      particle.style.height = `${size}px`;
+      particle.style.left = `${centerX}px`;
+      particle.style.top = `${centerY}px`;
+      document.body.appendChild(particle);
+
+      const angle = gsap.utils.random(0, Math.PI * 2);
+      const distance = gsap.utils.random(26, 64) * reach;
+      gsap.fromTo(
+        particle,
+        { xPercent: -50, yPercent: -50, x: 0, y: 0, scale: 1, autoAlpha: 1 },
+        {
+          x: Math.cos(angle) * distance,
+          // A slight upward drift: dust released into space, not falling to the floor.
+          y: Math.sin(angle) * distance - 8,
+          scale: 0,
+          autoAlpha: 0,
+          duration: gsap.utils.random(0.45, crit ? 0.95 : 0.8),
+          ease: 'power2.out',
+          onComplete: () => particle.remove()
+        }
+      );
+    }
+
+    const ringCount = crit ? 2 : 1;
+    for (let index = 0; index < ringCount; index += 1) {
+      const ring = document.createElement('span');
+      ring.className = crit ? 'completion-ring crit' : 'completion-ring';
+      ring.style.left = `${centerX}px`;
+      ring.style.top = `${centerY}px`;
+      document.body.appendChild(ring);
+      gsap.fromTo(
+        ring,
+        { xPercent: -50, yPercent: -50, scale: 0.4, autoAlpha: 0.8 },
+        {
+          xPercent: -50,
+          yPercent: -50,
+          scale: 1.9 + index * 0.9,
+          autoAlpha: 0,
+          duration: 0.55 + index * 0.18,
+          delay: index * 0.08,
+          ease: 'power2.out',
+          onComplete: () => ring.remove()
+        }
+      );
+    }
+  }
+
+  // Casino layer: a "+N" chip pops off the check, arcs into the stardust HUD, and the odometer rolls up.
+  private celebrateAward(award: CompletionAward, originRect: DOMRect): void {
+    if (this.reducedMotion()) {
+      this.displayedPoints.set(award.totalPoints);
+    } else {
+      this.flyPointsChip(award, originRect);
+    }
+
+    this.enqueueAchievements(award.unlocked);
+    if (award.leveledUp) {
+      window.setTimeout(() => this.showLevelUp(award.level, award.rank), this.reducedMotion() ? 0 : 950);
+    }
+  }
+
+  private flyPointsChip(award: CompletionAward, originRect: DOMRect): void {
+    const chip = document.createElement('span');
+    chip.className = award.crit ? 'points-chip crit' : 'points-chip';
+    chip.textContent = `+${award.points}`;
+    chip.style.left = `${originRect.left + originRect.width / 2}px`;
+    chip.style.top = `${originRect.top + originRect.height / 2}px`;
+    document.body.appendChild(chip);
+
+    const target = document.querySelector<HTMLElement>('.hud-points');
+    const chipTimeline = gsap.timeline({
+      onComplete: () => {
+        chip.remove();
+        this.playPointsRollFlow(award.totalPoints);
+      }
+    });
+
+    chipTimeline.fromTo(
+      chip,
+      { xPercent: -50, yPercent: -50, scale: 0.4, autoAlpha: 0 },
+      { scale: 1.12, autoAlpha: 1, duration: 0.24, ease: MOTION.spring }
+    );
+
+    if (target) {
+      const targetRect = target.getBoundingClientRect();
+      const deltaX = targetRect.left + targetRect.width / 2 - (originRect.left + originRect.width / 2);
+      const deltaY = targetRect.top + targetRect.height / 2 - (originRect.top + originRect.height / 2);
+      // Split easings on x and y trace an arc without needing a motion-path plugin.
+      chipTimeline.to(chip, { x: deltaX, duration: 0.55, ease: 'power1.inOut' }, 0.42);
+      chipTimeline.to(chip, { y: deltaY, duration: 0.55, ease: 'power2.in' }, 0.42);
+      chipTimeline.to(chip, { scale: 0.35, autoAlpha: 0, duration: 0.2, ease: 'power1.in' }, 0.8);
+    } else {
+      // No HUD on screen (places module) — the chip just floats up and fades.
+      chipTimeline.to(chip, { y: '-=34', autoAlpha: 0, duration: 0.6, ease: 'power1.out' }, 0.45);
+    }
+  }
+
+  private playPointsRollFlow(targetTotal: number): void {
+    const counter = { value: this.displayedPoints() };
+    const pointsTimeline = this.replaceTimeline('points');
+    pointsTimeline.to(
+      counter,
+      {
+        value: targetTotal,
+        duration: 0.6,
+        ease: MOTION.easeOut,
+        onUpdate: () => this.displayedPoints.set(Math.round(counter.value))
+      },
+      0
+    );
+
+    const hud = document.querySelector<HTMLElement>('.hud-points');
+    if (hud) {
+      pointsTimeline.fromTo(hud, { scale: 1.12 }, { scale: 1, duration: 0.45, ease: MOTION.spring, clearProps: 'transform' }, 0);
+    }
+  }
+
+  // "COMBO ×2" / "STELLAR STRIKE" floats up from the kill like arcade damage text.
+  private spawnFloatingLabel(originRect: DOMRect, text: string, crit: boolean): void {
+    if (this.reducedMotion()) {
+      return;
+    }
+
+    const label = document.createElement('span');
+    label.className = crit ? 'combo-float crit' : 'combo-float';
+    label.textContent = text;
+    label.style.left = `${originRect.left + originRect.width / 2}px`;
+    label.style.top = `${originRect.top - 6}px`;
+    document.body.appendChild(label);
+
+    gsap.fromTo(
+      label,
+      { xPercent: -50, yPercent: -50, y: 0, scale: 0.6, autoAlpha: 0, rotation: -6 },
+      { y: -34, scale: 1, autoAlpha: 1, rotation: 0, duration: 0.32, ease: MOTION.spring }
+    );
+    gsap.to(label, { y: -58, autoAlpha: 0, duration: 0.5, ease: 'power1.in', delay: 0.6, onComplete: () => label.remove() });
+  }
+
+  // A crit hits the whole frame: amber flash, a quick camera shake, and a heavier haptic riff.
+  private playCritImpact(): void {
+    if (this.reducedMotion()) {
+      return;
+    }
+
+    const flash = document.createElement('div');
+    flash.className = 'crit-flash';
+    document.body.appendChild(flash);
+    gsap.fromTo(flash, { autoAlpha: 0.55 }, { autoAlpha: 0, duration: 0.5, ease: 'power2.out', onComplete: () => flash.remove() });
+
+    const shell = document.querySelector<HTMLElement>('.app-shell');
+    if (shell) {
+      gsap.fromTo(shell, { x: -3 }, { x: 3, duration: 0.045, repeat: 5, yoyo: true, ease: 'none', onComplete: () => gsap.set(shell, { clearProps: 'transform' }) });
+    }
+
+    try {
+      navigator.vibrate?.([14, 40, 18]);
+    } catch {
+      // Haptics are a bonus, never a requirement.
+    }
+  }
+
+  private enqueueAchievements(defs: AchievementDef[]): void {
+    defs.forEach((def, index) => window.setTimeout(() => this.pushAchievementToast(def), index * 700));
+  }
+
+  private pushAchievementToast(def: AchievementDef): void {
+    const key = ++this.toastSequence;
+    this.achievementToasts.update((list) => [...list, { key, def }]);
+    // Removal waits until the toast's CSS life animation has already faded it out.
+    window.setTimeout(() => {
+      this.achievementToasts.update((list) => list.filter((toast) => toast.key !== key));
+    }, 4_400);
+  }
+
+  private showLevelUp(level: number, rank: string): void {
+    this.levelUpInfo.set({ level, rank });
+    window.setTimeout(() => {
+      if (this.levelUpInfo()?.level === level) {
+        this.levelUpInfo.set(null);
+      }
+    }, 3_000);
+  }
+
+  dismissLevelUp(): void {
+    this.levelUpInfo.set(null);
+  }
+
+  private checkDayCleared(): void {
+    // The store signal settles after toggle; check shortly afterward whether the sky is clear.
+    window.setTimeout(() => {
+      if (this.allTasksDone()) {
+        this.enqueueAchievements(this.game.recordDayCleared());
+      }
+    }, 350);
+  }
+
+  // Psychology: visible descent. The "N open" pill pops and its number ticks down, so every completion moves a number the user can feel.
+  private playOpenCountFlow(): void {
+    if (this.reducedMotion()) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      const pill = document.querySelector<HTMLElement>('.day-pulse');
+      const count = pill?.querySelector<HTMLElement>('.pulse-count');
+      if (!pill || !count) {
+        return;
+      }
+
+      const openCountTimeline = this.replaceTimeline('openCount');
+      openCountTimeline.fromTo(pill, { scale: 1.14 }, { scale: 1, duration: 0.42, ease: MOTION.spring, clearProps: 'transform' }, 0);
+      openCountTimeline.fromTo(
+        pill,
+        { boxShadow: '0 0 16px rgba(240, 201, 135, 0.45)' },
+        { boxShadow: '0 0 0px rgba(240, 201, 135, 0)', duration: 0.5, ease: MOTION.easeOut, clearProps: 'boxShadow' },
+        0
+      );
+      openCountTimeline.fromTo(
+        count,
+        { y: 8, autoAlpha: 0.2 },
+        { y: 0, autoAlpha: 1, duration: 0.3, ease: MOTION.easeOut, clearProps: 'transform,opacity,visibility' },
+        0
+      );
+    });
   }
 
   private playStatusSignalFlow(iconSelector: string): void {
@@ -1225,10 +1845,16 @@ export class Dashboard implements AfterViewInit, OnDestroy {
     const icon = item.querySelector<HTMLElement>('.big-check i, .small-check i');
     const title = item.querySelector<HTMLElement>('.task-copy h2, .task-copy h3');
     const ripple = item.querySelector<HTMLElement>('.check-ripple');
+    const check = item.querySelector<HTMLElement>('.big-check, .small-check');
 
     if (icon) {
       icon.className = 'pi pi-circle';
-      gsap.set(icon, { clearProps: 'color,transform' });
+      gsap.set(icon, { clearProps: 'color,transform,transition' });
+    }
+
+    if (check) {
+      // The completion flow floods the check with amber inline styles; a reused node must come back as an open orbit.
+      gsap.set(check, { clearProps: 'backgroundColor,borderColor,boxShadow,transform,transition' });
     }
 
     if (title) {
@@ -1241,7 +1867,7 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       gsap.set(ripple, { autoAlpha: 0, scale: 0.72 });
     }
 
-    gsap.set(item, { clearProps: 'opacity,visibility,transform,filter,transformOrigin' });
+    gsap.set(item, { clearProps: 'opacity,visibility,transform,filter,transformOrigin,transition' });
   }
 
   private replaceTimeline(key: MotionKey): gsap.core.Timeline {
@@ -1275,16 +1901,19 @@ export class Dashboard implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (module === 'tasks' && this.kind() === 'location') {
-      this.kind.set('todo');
+    if (module === 'tasks') {
+      if (this.kind() === 'location') {
+        this.kind.set('todo');
+      }
+      // The tasks module uses the chip rail; any details panel left open by the places module would double up.
+      this.detailsOpen.set(false);
+      this.detailsRendered.set(false);
     }
   }
 
   private async activateLocationReminderSetup(): Promise<void> {
     this.kind.set('location');
-    if (!this.detailsOpen()) {
-      this.openDetailsFlow();
-    }
+    this.openPlaceFold();
 
     await this.notifications.requestPermission();
     this.location.start();
@@ -1292,6 +1921,201 @@ export class Dashboard implements AfterViewInit, OnDestroy {
 
     if (!this.latitude() || !this.longitude()) {
       await this.useCurrentLocation();
+    }
+  }
+}
+
+function formatMultiplier(multiplier: number): string {
+  return Number.isInteger(multiplier) ? String(multiplier) : multiplier.toFixed(1);
+}
+
+const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+function formatRadius(meters: number): string {
+  return meters >= 1000 ? `${meters % 1000 ? (meters / 1000).toFixed(1) : meters / 1000} km` : `${meters} m`;
+}
+
+function haversineMeters(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number }
+): number {
+  const earthRadius = 6_371_000;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.sqrt(h));
+}
+
+// Reads a clock time from the start of `rest`. To avoid hijacking ordinary numbers ("buy 5 apples"),
+// it only accepts a bare hour when "at", minutes, or am/pm make the intent unambiguous.
+function matchClock(rest: string): { hour: number; minute: number; consumed: number } | null {
+  const match = /^\s+(?:(at)\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\b/i.exec(rest);
+  if (!match) {
+    return null;
+  }
+
+  const hasAt = !!match[1];
+  const hasMinutes = match[3] !== undefined;
+  const meridiem = match[4]?.toLowerCase();
+  if (!hasAt && !hasMinutes && !meridiem) {
+    return null;
+  }
+
+  let hour = Number(match[2]);
+  const minute = hasMinutes ? Number(match[3]) : 0;
+  if (hour > 23 || minute > 59) {
+    return null;
+  }
+
+  if (meridiem === 'pm' && hour < 12) {
+    hour += 12;
+  }
+  if (meridiem === 'am' && hour === 12) {
+    hour = 0;
+  }
+  // "at 6" with no am/pm usually means evening, not dawn.
+  if (!meridiem && !hasMinutes && hour >= 1 && hour <= 7) {
+    hour += 12;
+  }
+
+  return { hour, minute, consumed: match[0].length };
+}
+
+function parseNaturalTime(input: string, now = new Date()): ParsedTime | null {
+  // "in 20 min" / "in 2 hours"
+  const relative = /\bin\s+(\d{1,3})\s*(m|min|mins|minutes|h|hr|hrs|hours)\b/i.exec(input);
+  if (relative) {
+    const amount = Number(relative[1]);
+    const isHours = relative[2].toLowerCase().startsWith('h');
+    return { date: new Date(now.getTime() + amount * (isHours ? 3_600_000 : 60_000)), phrase: relative[0] };
+  }
+
+  // Day anchors: "tomorrow", "tonight", "this evening", weekday names — each with an optional trailing clock.
+  const dayMatch = /\b(tomorrow|today|tonight|this evening|sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/i.exec(input);
+  if (dayMatch) {
+    const word = dayMatch[1].toLowerCase();
+    const clock = matchClock(input.slice(dayMatch.index + dayMatch[0].length));
+    // "today" alone carries no time information — only act on it when a clock follows.
+    if (word === 'today' && !clock) {
+      return null;
+    }
+
+    const date = new Date(now);
+    let defaultHour = 9;
+    if (word === 'tomorrow') {
+      date.setDate(date.getDate() + 1);
+    } else if (word === 'tonight') {
+      defaultHour = 20;
+    } else if (word === 'this evening') {
+      defaultHour = 19;
+    } else if (word !== 'today') {
+      const target = WEEKDAYS.indexOf(word);
+      let delta = (target - now.getDay() + 7) % 7;
+      if (delta === 0) {
+        delta = 7;
+      }
+      date.setDate(date.getDate() + delta);
+    }
+
+    date.setHours(clock?.hour ?? defaultHour, clock?.minute ?? 0, 0, 0);
+    // "tonight" after 20:00 still deserves to land in the future.
+    if ((word === 'tonight' || word === 'this evening') && !clock && date <= now) {
+      return { date: new Date(now.getTime() + 3_600_000), phrase: dayMatch[0] };
+    }
+
+    return { date, phrase: input.substr(dayMatch.index, dayMatch[0].length + (clock?.consumed ?? 0)) };
+  }
+
+  // Bare "at 6pm" / "at 18:30" — today, rolling to tomorrow if already past.
+  const atMatch = /\bat\s+\d/i.exec(input);
+  if (atMatch) {
+    // matchClock expects leading whitespace before the phrase, so lend it one.
+    const clock = matchClock(' ' + input.slice(atMatch.index));
+    if (clock) {
+      const date = new Date(now);
+      date.setHours(clock.hour, clock.minute, 0, 0);
+      if (date <= now) {
+        date.setDate(date.getDate() + 1);
+      }
+      return { date, phrase: input.substr(atMatch.index, clock.consumed - 1) };
+    }
+  }
+
+  // Bare 24h time like "18:30".
+  const bare = /\b(\d{1,2}):(\d{2})\b/.exec(input);
+  if (bare) {
+    const hour = Number(bare[1]);
+    const minute = Number(bare[2]);
+    if (hour <= 23 && minute <= 59) {
+      const date = new Date(now);
+      date.setHours(hour, minute, 0, 0);
+      if (date <= now) {
+        date.setDate(date.getDate() + 1);
+      }
+      return { date, phrase: bare[0] };
+    }
+  }
+
+  return null;
+}
+
+function stripTimePhrase(title: string, phrase: string): string {
+  const index = title.toLowerCase().indexOf(phrase.toLowerCase().trim());
+  if (index < 0) {
+    return title;
+  }
+
+  return (title.slice(0, index) + title.slice(index + phrase.trim().length))
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .replace(/[,.\-–]\s*$/, '')
+    .trim();
+}
+
+function friendlyDueLabel(date: Date, now = new Date()): string {
+  const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const startOfDay = (value: Date) => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const diffDays = Math.round((startOfDay(date) - startOfDay(now)) / 86_400_000);
+
+  if (diffDays === 0) {
+    return `Today ${time}`;
+  }
+  if (diffDays === 1) {
+    return `Tomorrow ${time}`;
+  }
+  if (diffDays > 1 && diffDays < 7) {
+    return `${date.toLocaleDateString([], { weekday: 'short' })} ${time}`;
+  }
+  return `${date.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${time}`;
+}
+
+function duePresetDate(id: DuePresetId, now = new Date()): Date {
+  switch (id) {
+    case 'hour':
+      return new Date(now.getTime() + 3_600_000);
+    case 'evening': {
+      const date = new Date(now);
+      date.setHours(19, 0, 0, 0);
+      if (date <= now) {
+        date.setDate(date.getDate() + 1);
+      }
+      return date;
+    }
+    case 'tomorrow': {
+      const date = new Date(now);
+      date.setDate(date.getDate() + 1);
+      date.setHours(9, 0, 0, 0);
+      return date;
+    }
+    case 'weekend': {
+      const date = new Date(now);
+      const delta = (6 - date.getDay() + 7) % 7 || 7;
+      date.setDate(date.getDate() + delta);
+      date.setHours(10, 0, 0, 0);
+      return date;
     }
   }
 }

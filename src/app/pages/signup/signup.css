@@ -20,22 +20,149 @@
   border-right: 1px solid var(--line);
 }
 
-.glow-orb {
+/* ---- The black hole: pure CSS gravitational theatre (see login.css for the annotated original) ---- */
+
+.black-hole {
   position: absolute;
   top: 30%;
   left: 50%;
-  width: 16rem;
-  height: 16rem;
-  border-radius: 999px;
-  background: radial-gradient(circle at 35% 35%, rgba(240, 201, 135, 0.55), rgba(240, 201, 135, 0.05) 60%, transparent 75%);
-  filter: blur(2px);
+  width: 19rem;
+  height: 19rem;
   transform: translate(-50%, -50%);
-  animation: breathe 7s ease-in-out infinite;
 }
 
-@keyframes breathe {
-  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.85; }
-  50% { transform: translate(-50%, -50%) scale(1.08); opacity: 1; }
+.bh-lensing {
+  position: absolute;
+  inset: -24%;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(240, 201, 135, 0.05) 50deg,
+    transparent 110deg,
+    rgba(255, 255, 255, 0.03) 180deg,
+    transparent 230deg,
+    rgba(240, 201, 135, 0.06) 300deg,
+    transparent 360deg
+  );
+  backdrop-filter: blur(2.5px) brightness(1.15);
+  -webkit-backdrop-filter: blur(2.5px) brightness(1.15);
+  -webkit-mask: radial-gradient(circle, transparent 28%, #000 38%, #000 56%, transparent 68%);
+  mask: radial-gradient(circle, transparent 28%, #000 38%, #000 56%, transparent 68%);
+  animation: lens-swirl 30s linear infinite;
+}
+
+@keyframes lens-swirl {
+  to { transform: rotate(360deg); }
+}
+
+.bh-disk {
+  position: absolute;
+  inset: -8%;
+  border-radius: 999px;
+  background: conic-gradient(
+    from 0deg,
+    rgba(240, 201, 135, 0) 0deg,
+    rgba(240, 201, 135, 0.55) 40deg,
+    rgba(251, 231, 192, 0.95) 70deg,
+    rgba(240, 201, 135, 0.25) 120deg,
+    rgba(240, 201, 135, 0.7) 180deg,
+    rgba(185, 138, 69, 0.35) 240deg,
+    rgba(251, 231, 192, 0.85) 300deg,
+    rgba(240, 201, 135, 0) 360deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent 33%, #000 38%, #000 56%, transparent 63%);
+  mask: radial-gradient(circle, transparent 33%, #000 38%, #000 56%, transparent 63%);
+  filter: blur(3px) saturate(1.1);
+  opacity: 0.9;
+  animation: disk-spin 10s linear infinite;
+}
+
+@keyframes disk-spin {
+  from { transform: rotateX(72deg) rotate(0deg); }
+  to { transform: rotateX(72deg) rotate(360deg); }
+}
+
+.bh-halo {
+  position: absolute;
+  inset: 16%;
+  border-radius: 999px;
+  background: conic-gradient(
+    from -90deg,
+    rgba(251, 231, 192, 0.85),
+    rgba(240, 201, 135, 0.12) 90deg,
+    rgba(240, 201, 135, 0.45) 180deg,
+    rgba(240, 201, 135, 0.1) 270deg,
+    rgba(251, 231, 192, 0.85) 360deg
+  );
+  -webkit-mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 1px), #000 50%, transparent calc(50% + 1px));
+  mask: radial-gradient(circle, transparent calc(50% - 3px), #000 calc(50% - 1px), #000 50%, transparent calc(50% + 1px));
+  filter: blur(1px);
+  opacity: 0.75;
+  animation: halo-pulse 6s ease-in-out infinite;
+}
+
+@keyframes halo-pulse {
+  50% { opacity: 1; }
+}
+
+.bh-core {
+  position: absolute;
+  inset: 27%;
+  border-radius: 999px;
+  background: #000;
+  box-shadow:
+    0 0 0 1.5px rgba(251, 231, 192, 0.85),
+    0 0 18px 3px rgba(240, 201, 135, 0.55),
+    0 0 60px 16px rgba(240, 201, 135, 0.16),
+    inset 0 0 24px 12px rgba(0, 0, 0, 1);
+  transition: box-shadow 500ms ease;
+}
+
+.bh-comet {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 999px;
+  background: #fbe7c0;
+  box-shadow: 0 0 8px 2px rgba(251, 231, 192, 0.8);
+  offset-path: path('M 310 30 C 380 120, 330 260, 200 270 C 90 280, 20 200, 60 120 C 88 65, 170 80, 152 152');
+  offset-rotate: auto;
+  opacity: 0;
+  animation: comet-fall 7.5s cubic-bezier(0.45, 0.05, 0.7, 0.5) infinite;
+}
+
+@keyframes comet-fall {
+  0% { offset-distance: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  58% { opacity: 1; }
+  72% { offset-distance: 100%; opacity: 0; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+.black-hole.charging .bh-disk {
+  animation-duration: 4.5s;
+}
+
+.black-hole.feeding .bh-disk {
+  animation-duration: 2s;
+  filter: blur(2.5px) saturate(1.3) brightness(1.3);
+  opacity: 1;
+}
+
+.black-hole.feeding .bh-halo {
+  opacity: 1;
+  filter: blur(0.6px);
+}
+
+.black-hole.feeding .bh-core {
+  box-shadow:
+    0 0 0 2px rgba(251, 231, 192, 1),
+    0 0 26px 6px rgba(240, 201, 135, 0.8),
+    0 0 90px 30px rgba(240, 201, 135, 0.28),
+    inset 0 0 24px 12px rgba(0, 0, 0, 1);
 }
 
 .orbit {
@@ -112,6 +239,63 @@
 
 .form-card {
   width: min(100%, 24rem);
+}
+
+/* Arrival: the form assembles top-to-bottom. */
+.form-card > * {
+  animation: rise-in 520ms var(--ease-calm) both;
+}
+
+.form-card > *:nth-child(2) { animation-delay: 60ms; }
+.form-card > *:nth-child(3) { animation-delay: 120ms; }
+.form-card > *:nth-child(4) { animation-delay: 180ms; }
+.form-card > *:nth-child(5) { animation-delay: 240ms; }
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* Departure: success pulls the whole card across the event horizon. */
+.form-card.warp-out {
+  animation: warp-out 780ms cubic-bezier(0.55, 0, 0.85, 0.4) 140ms both;
+  pointer-events: none;
+}
+
+.form-card.warp-out > * {
+  animation: none;
+}
+
+@keyframes warp-out {
+  30% {
+    filter: blur(0);
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-44vw) scale(0.25) rotate(-10deg);
+    filter: blur(8px);
+  }
+}
+
+@keyframes warp-out-center {
+  30% {
+    filter: blur(0);
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8vh) scale(0.25) rotate(-8deg);
+    filter: blur(8px);
+  }
+}
+
+@media (max-width: 920px) {
+  .form-card.warp-out {
+    animation-name: warp-out-center;
+  }
 }
 
 .eyebrow {

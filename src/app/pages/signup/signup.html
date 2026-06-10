@@ -1,9 +1,15 @@
 <main class="auth-shell">
   <section class="visual-pane" aria-hidden="true">
+    <div class="stars"></div>
     <div class="orbit orbit-outer"></div>
     <div class="orbit orbit-inner"></div>
-    <div class="glow-orb"></div>
-    <div class="stars"></div>
+    <div class="black-hole" [class.charging]="status() === 'loading'" [class.feeding]="status() === 'success'">
+      <div class="bh-lensing"></div>
+      <div class="bh-disk"></div>
+      <div class="bh-halo"></div>
+      <div class="bh-core"></div>
+      <span class="bh-comet"></span>
+    </div>
 
     <div class="visual-copy">
       <p class="eyebrow brand-mark">Solarray</p>
@@ -13,7 +19,7 @@
   </section>
 
   <section class="form-pane">
-    <div class="form-card">
+    <div class="form-card" [class.warp-out]="status() === 'success'">
       <p class="eyebrow">Get started</p>
       <h1>Create your account</h1>
       <p class="lede">Takes about a minute. No noise, ever.</p>

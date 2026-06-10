@@ -99,6 +99,315 @@ h1 {
   line-height: 0.95;
 }
 
+.hero-greeting {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  letter-spacing: 0.01em;
+}
+
+/* ---- Game HUD: stardust, rank, streak ---- */
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.035);
+  backdrop-filter: blur(18px);
+  padding: 0.6rem 0.78rem;
+}
+
+.hud-points {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 0.32rem;
+}
+
+.hud-points i {
+  align-self: center;
+  color: var(--accent);
+  font-size: 0.78rem;
+  text-shadow: 0 0 10px rgba(240, 201, 135, 0.5);
+}
+
+.points-value {
+  color: var(--accent);
+  font-size: 1.3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.points-unit {
+  color: var(--muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hud-rank {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 0.32rem;
+}
+
+.rank-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.rank-name {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rank-level {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.rank-bar {
+  position: relative;
+  height: 0.34rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.rank-bar span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(240, 201, 135, 0.6), var(--accent));
+  box-shadow: 0 0 10px rgba(240, 201, 135, 0.4);
+  transition: width 600ms var(--ease-calm);
+}
+
+/* A slow light sweep keeps the XP bar feeling alive — casino shine, observatory pace. */
+.rank-bar span::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, 0.4) 50%, transparent 75%);
+  transform: translateX(-100%);
+  animation: shimmer-sweep 2.8s ease-in-out infinite;
+}
+
+@keyframes shimmer-sweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.hud-streak {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid rgba(240, 201, 135, 0.25);
+  border-radius: 999px;
+  background: rgba(240, 201, 135, 0.06);
+  color: var(--accent);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.hud-streak i {
+  font-size: 0.66rem;
+}
+
+/* ---- Achievement toasts ---- */
+
+.toast-stack {
+  position: fixed;
+  top: max(0.8rem, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 45;
+  display: grid;
+  gap: 0.45rem;
+  width: min(20rem, calc(100% - 2rem));
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.achievement-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  gap: 0.62rem;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(240, 201, 135, 0.34);
+  border-radius: 0.8rem;
+  background: rgba(13, 15, 21, 0.92);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5), 0 0 24px rgba(240, 201, 135, 0.12);
+  padding: 0.6rem 0.72rem;
+  animation: toast-life 4.4s var(--ease-calm) both;
+}
+
+@keyframes toast-life {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  7% {
+    opacity: 1;
+    transform: none;
+  }
+  88% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.toast-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(240, 201, 135, 0.18) 50%, transparent 70%);
+  transform: translateX(-100%);
+  animation: shimmer-sweep 1.4s ease-out 0.3s both;
+}
+
+.achievement-toast > i {
+  display: grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border: 1px solid rgba(240, 201, 135, 0.4);
+  border-radius: 999px;
+  background: rgba(240, 201, 135, 0.1);
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(240, 201, 135, 0.55);
+}
+
+.achievement-toast p {
+  color: var(--accent);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.achievement-toast h4 {
+  margin: 0.12rem 0 0;
+  color: var(--ink);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.toast-desc {
+  display: block;
+  margin-top: 0.08rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+/* ---- Rank-up overlay ---- */
+
+.levelup-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(3, 4, 7, 0.74);
+  backdrop-filter: blur(9px);
+  animation: levelup-fade 300ms ease-out both;
+}
+
+@keyframes levelup-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Spotlight rays sweep slowly behind the new rank — the one place the UI is allowed to be theatrical. */
+.levelup-rays {
+  position: absolute;
+  width: 46rem;
+  height: 46rem;
+  border-radius: 999px;
+  background: repeating-conic-gradient(from 0deg, rgba(240, 201, 135, 0.08) 0deg 9deg, transparent 9deg 32deg);
+  -webkit-mask: radial-gradient(circle, #000 0%, transparent 68%);
+  mask: radial-gradient(circle, #000 0%, transparent 68%);
+  animation: rays-spin 16s linear infinite;
+}
+
+@keyframes rays-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.levelup-card {
+  position: relative;
+  text-align: center;
+  animation: levelup-pop 700ms var(--ease-reward) both;
+}
+
+@keyframes levelup-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+}
+
+.levelup-eyebrow {
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+.levelup-card h2 {
+  margin-top: 0.5rem;
+  background: linear-gradient(180deg, #fbe7c0, #f0c987 55%, #b98a45);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  font-size: clamp(2.2rem, 12vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  filter: drop-shadow(0 0 26px rgba(240, 201, 135, 0.35));
+}
+
+.levelup-sub {
+  margin-top: 0.55rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .capture-panel,
 .task-panel,
 .today-card,
@@ -124,6 +433,154 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
+}
+
+/* ---- Capture chip rail: time, type, note as one-tap pills instead of a form ---- */
+
+.chip-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.capture-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  min-height: 2.15rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  padding: 0.32rem 0.68rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease, transform 160ms var(--ease-calm), box-shadow 220ms ease;
+}
+
+.capture-chip i {
+  font-size: 0.68rem;
+}
+
+.capture-chip:hover {
+  border-color: rgba(240, 201, 135, 0.36);
+  background: rgba(240, 201, 135, 0.05);
+  color: var(--accent);
+}
+
+.capture-chip:active {
+  transform: scale(0.95);
+}
+
+.capture-chip.active {
+  border-color: rgba(240, 201, 135, 0.42);
+  background: rgba(240, 201, 135, 0.08);
+  color: var(--accent);
+}
+
+.time-chip em {
+  border-radius: 999px;
+  background: rgba(240, 201, 135, 0.16);
+  color: var(--accent);
+  padding: 0.08rem 0.34rem;
+  font-size: 0.56rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Natural-language detection lights the chip up so the user sees the app understood them. */
+.time-chip.detected {
+  border-color: rgba(240, 201, 135, 0.5);
+  background: rgba(240, 201, 135, 0.07);
+  color: var(--accent);
+  box-shadow: 0 0 14px rgba(240, 201, 135, 0.18);
+  animation: chip-detected 320ms var(--ease-reward);
+}
+
+@keyframes chip-detected {
+  0% { transform: scale(0.94); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.time-menu {
+  display: grid;
+  gap: 0.3rem;
+  border: 1px solid var(--line);
+  border-radius: 0.78rem;
+  background: rgba(13, 15, 21, 0.9);
+  padding: 0.45rem;
+  transform-origin: top left;
+  animation: menu-pop 220ms var(--ease-reward);
+}
+
+@keyframes menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+.time-menu > button {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--ink);
+  padding: 0.42rem 0.55rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease;
+}
+
+.time-menu > button i {
+  color: var(--accent);
+  font-size: 0.76rem;
+}
+
+.time-menu > button em {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-menu > button:hover {
+  border-color: rgba(240, 201, 135, 0.3);
+  background: rgba(240, 201, 135, 0.06);
+}
+
+.custom-time {
+  border-top: 1px solid var(--line);
+  margin-top: 0.18rem;
+  padding-top: 0.5rem;
+}
+
+/* The note folds open with the modern grid-rows trick — no JS measurement needed. */
+.note-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms var(--ease-calm);
+}
+
+.note-fold > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.note-fold.open {
+  grid-template-rows: 1fr;
+}
+
+.note-fold .field {
+  padding-top: 0.1rem;
 }
 
 .details-toggle {
@@ -193,6 +650,41 @@ h1 {
   font-weight: 700;
 }
 
+/* Psychology: endowed progress. A quiet ring that fills as the day clears — a signal, not a scoreboard. */
+.day-pulse {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.42rem;
+  border: 1px solid rgba(240, 201, 135, 0.18);
+  border-radius: 999px;
+  color: var(--accent);
+  padding: 0.18rem 0.55rem 0.18rem 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.pulse-ring {
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  background: conic-gradient(var(--accent) calc(var(--p, 0) * 1%), rgba(255, 255, 255, 0.13) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.2rem), #000 calc(100% - 0.16rem));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 0.2rem), #000 calc(100% - 0.16rem));
+}
+
+.day-pulse.complete {
+  border-color: rgba(240, 201, 135, 0.34);
+  background: rgba(240, 201, 135, 0.07);
+}
+
+.day-pulse.complete .pulse-ring {
+  -webkit-mask: none;
+  mask: none;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(240, 201, 135, 0.45);
+}
+
 .next-item,
 .later-list article {
   display: grid;
@@ -203,13 +695,93 @@ h1 {
   background: rgba(255, 255, 255, 0.022);
 }
 
+/* Psychology: one dominant open loop. The hero card earns its presence with depth and a quiet ambient halo. */
 .next-item {
-  grid-template-columns: 2.75rem minmax(0, 1fr) 2.1rem;
-  gap: 0.58rem;
-  min-height: 4.2rem;
-  border-color: rgba(240, 201, 135, 0.15);
-  background: rgba(240, 201, 135, 0.045);
-  padding: 0.58rem;
+  position: relative;
+  grid-template-columns: 3rem minmax(0, 1fr) 2.1rem;
+  gap: 0.7rem;
+  min-height: 5rem;
+  border-color: rgba(240, 201, 135, 0.22);
+  border-radius: 0.92rem;
+  background: linear-gradient(135deg, rgba(240, 201, 135, 0.085), rgba(240, 201, 135, 0.03) 55%, rgba(255, 255, 255, 0.02));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 0.82rem 0.7rem 0.82rem 0.82rem;
+}
+
+.next-halo {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+/* Observatory language: a thin orbit ring peeking off the corner, with a slow breathing glow behind it. */
+.next-halo::before {
+  content: '';
+  position: absolute;
+  top: -4.5rem;
+  right: -4.5rem;
+  width: 9.5rem;
+  height: 9.5rem;
+  border: 1px solid rgba(240, 201, 135, 0.16);
+  border-radius: 999px;
+}
+
+.next-halo::after {
+  content: '';
+  position: absolute;
+  top: -3rem;
+  right: -3rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(240, 201, 135, 0.16), transparent 70%);
+  animation: halo-breathe 7s ease-in-out infinite;
+}
+
+@keyframes halo-breathe {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.08); opacity: 1; }
+}
+
+.task-copy .next-eyebrow {
+  margin: 0 0 0.24rem;
+  color: rgba(240, 201, 135, 0.85);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.task-copy .due-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.34rem;
+  margin-top: 0.42rem;
+  overflow: visible;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+  padding: 0.16rem 0.52rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.due-chip i {
+  font-size: 0.64rem;
+  color: rgba(240, 201, 135, 0.7);
+}
+
+.later-label {
+  margin: 0.75rem 0 0.42rem 0.2rem;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }
 
 .later-list {
@@ -217,6 +789,106 @@ h1 {
   gap: 0.45rem;
   margin-top: 0.55rem;
   margin-left: 0.58rem;
+}
+
+.later-label + .later-list {
+  margin-top: 0;
+  margin-left: 0.2rem;
+}
+
+.resting-note {
+  margin: 0.6rem 0 0 0.25rem;
+  color: rgba(130, 141, 155, 0.85);
+  font-size: 0.74rem;
+}
+
+/* ---- Places module ---- */
+
+/* The whole point of the tab in one pill: is Solarray watching where you are? */
+.watch-pill {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--muted);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  transition: border-color var(--motion-fast) ease, background var(--motion-fast) ease, color var(--motion-fast) ease;
+}
+
+.watch-pill.live {
+  border-color: rgba(147, 182, 160, 0.4);
+  background: rgba(147, 182, 160, 0.07);
+  color: var(--green);
+}
+
+.watch-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.watch-pill.live .watch-dot {
+  background: var(--green);
+  animation: watch-ping 2.4s ease-out infinite;
+}
+
+@keyframes watch-ping {
+  0% { box-shadow: 0 0 0 0 rgba(147, 182, 160, 0.5); }
+  70% { box-shadow: 0 0 0 7px rgba(147, 182, 160, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(147, 182, 160, 0); }
+}
+
+.chip-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.42rem;
+}
+
+.chip-line .due-chip {
+  margin-top: 0;
+}
+
+.hero-actions {
+  display: grid;
+  gap: 0.3rem;
+}
+
+/* Standing inside a reminder's zone is the payoff moment — the row burns brighter. */
+.next-item.inside {
+  border-color: rgba(240, 201, 135, 0.5);
+  background: linear-gradient(135deg, rgba(240, 201, 135, 0.14), rgba(240, 201, 135, 0.05) 55%, rgba(255, 255, 255, 0.02));
+  box-shadow: 0 14px 38px rgba(0, 0, 0, 0.3), 0 0 26px rgba(240, 201, 135, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.later-list article.inside {
+  border-color: rgba(240, 201, 135, 0.4);
+  background: rgba(240, 201, 135, 0.06);
+}
+
+.distance-chip.inside {
+  border-color: rgba(240, 201, 135, 0.5);
+  background: rgba(240, 201, 135, 0.1);
+  color: var(--accent);
+}
+
+.cancel-chip:hover {
+  border-color: rgba(217, 148, 148, 0.42);
+  background: rgba(217, 148, 148, 0.06);
+  color: var(--rose);
+}
+
+.place-chip span:nth-child(2) {
+  overflow: hidden;
+  max-width: 11rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .later-list article {
@@ -243,13 +915,15 @@ h1 {
   color: var(--muted);
 }
 
+/* Checks are circles — small orbits waiting to be closed. Action icons stay rounded squares. */
 .big-check {
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 3rem;
+  height: 3rem;
   border-color: rgba(240, 201, 135, 0.42);
-  border-radius: 0.72rem;
+  border-radius: 999px;
   background: rgba(255, 255, 255, 0.018);
   color: rgba(240, 201, 135, 0.78);
+  box-shadow: 0 0 16px rgba(240, 201, 135, 0.08);
 }
 
 .big-check i {
@@ -267,6 +941,10 @@ h1 {
   width: 1.95rem;
   height: 1.95rem;
   border-radius: 0.58rem;
+}
+
+.small-check {
+  border-radius: 999px;
 }
 
 .check-ripple {
@@ -294,7 +972,12 @@ h1 {
 }
 
 .next-item .task-copy h3 {
-  font-size: 1.04rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 1.08rem;
+  line-height: 1.25;
+  white-space: normal;
 }
 
 .task-copy p,
@@ -320,18 +1003,94 @@ h1 {
 }
 
 .empty-next {
+  position: relative;
   display: grid;
-  min-height: 9rem;
+  min-height: 10rem;
   place-items: center;
+  align-content: center;
+  overflow: hidden;
   border: 1px dashed var(--line);
   border-radius: 0.78rem;
-  padding: 1rem;
+  padding: 1.1rem;
   text-align: center;
+}
+
+/* Psychology: the reward moment. A finished day glows softly — calm celebration, never confetti.
+   The whole state rises into place once when it appears, like dawn breaking. */
+.empty-next.all-clear {
+  border-style: solid;
+  border-color: rgba(240, 201, 135, 0.2);
+  background: rgba(240, 201, 135, 0.03);
+  animation: clear-skies-enter 520ms var(--ease-calm) both;
+}
+
+@keyframes clear-skies-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.empty-next.all-clear i {
+  animation: sun-rise 720ms var(--ease-reward) 120ms both;
+}
+
+@keyframes sun-rise {
+  from {
+    opacity: 0;
+    transform: scale(0.3) rotate(-30deg);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes glow-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+}
+
+.empty-glow {
+  position: absolute;
+  inset: 0;
+  width: 8rem;
+  height: 8rem;
+  margin: auto;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(240, 201, 135, 0.08), transparent 70%);
+  pointer-events: none;
+}
+
+.empty-next.all-clear .empty-glow {
+  background: radial-gradient(circle, rgba(240, 201, 135, 0.16), transparent 70%);
+  /* One bright burst on arrival, then the glow settles into its slow ambient breathe. */
+  animation: glow-burst 800ms ease-out both, halo-breathe 7s ease-in-out 800ms infinite;
+}
+
+.empty-next i,
+.empty-next h3,
+.empty-next p {
+  position: relative;
 }
 
 .empty-next i {
   color: var(--accent);
-  font-size: 1.1rem;
+  font-size: 1.25rem;
+}
+
+.empty-next.all-clear i {
+  font-size: 1.45rem;
+  text-shadow: 0 0 18px rgba(240, 201, 135, 0.45);
 }
 
 .empty-next h3 {
@@ -386,6 +1145,7 @@ h1 {
   position: fixed;
   inset: 0;
   z-index: 30;
+  animation: backdrop-in 220ms ease-out both;
   display: grid;
   align-items: center;
   justify-items: center;
@@ -409,6 +1169,23 @@ h1 {
   background: rgba(13, 15, 21, 0.96);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
   padding: 0.85rem;
+}
+
+.task-modal {
+  animation: modal-pop 380ms var(--ease-reward) both;
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.94);
+  }
 }
 
 .task-modal header {
@@ -619,6 +1396,21 @@ h1 {
   color: var(--accent);
 }
 
+.later-list article:hover,
+.next-item:hover {
+  transform: translateY(-1px);
+}
+
+.next-item:hover {
+  border-color: rgba(240, 201, 135, 0.32);
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.34), 0 0 24px rgba(240, 201, 135, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.next-item,
+.later-list article {
+  transition: transform 180ms var(--ease-calm), border-color var(--motion-fast) ease, background var(--motion-fast) ease, box-shadow 220ms ease;
+}
+
 .ghost-icon:not(.edit-icon):hover {
   border-color: rgba(217, 148, 148, 0.42);
   background: rgba(217, 148, 148, 0.06);
@@ -654,6 +1446,7 @@ h1 {
 
 @media (hover: none), (pointer: coarse) {
   .later-list article:hover,
+  .next-item:hover,
   .small-check:hover,
   .big-check:hover,
   .edit-icon:hover,
